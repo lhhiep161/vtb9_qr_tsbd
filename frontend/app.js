@@ -1,12 +1,19 @@
 function resolveApiBaseUrl() {
-  const override = window.APP_CONFIG?.API_BASE_URL_OVERRIDE;
-  if (typeof override === "string" && override.trim() !== "") return override.trim().replace(/\/+$/, "");
-  const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1") return "http://localhost:8000";
-  return `http://${host}:8000`;
+  const explicitBase = window.APP_CONFIG?.API_BASE_URL;
+  if (typeof explicitBase === "string" && explicitBase.trim() !== "") {
+    return explicitBase.trim().replace(/\/+$/, "");
+  }
+  const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  return isLocalhost ? "http://localhost:8000" : "";
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
+const API_URLS = {
+  provinces: `${API_BASE_URL}/api/provinces`,
+  convert: `${API_BASE_URL}/api/convert`,
+  ocrStatus: `${API_BASE_URL}/api/ocr-status`,
+  ocrCoordinates: `${API_BASE_URL}/api/ocr-coordinates`,
+};
 
 const provinceEl = document.getElementById("province");
 const value1El = document.getElementById("value1");
@@ -60,7 +67,6 @@ const state = {
   lastLongitude: null,
   lastMapsUrl: "",
   multiRows: [],
-  ocrCandidates: [],
 };
 
 brandLogoEl.addEventListener("error", () => {
@@ -249,7 +255,6 @@ function renderOcrCandidates(candidates) {
   ocrBatchPreviewEl.innerHTML = "";
   multiResultCardEl.classList.add("hidden");
   state.multiRows = [];
-  state.ocrCandidates = candidates || [];
 
   if (!candidates || candidates.length === 0) {
     ocrCandidatesTableWrapEl.classList.add("hidden");
@@ -372,7 +377,7 @@ function renderMultiResultTable(rows) {
 async function loadProvinces() {
   provinceEl.innerHTML = '<option value="">Đang tải danh sách tỉnh/thành...</option>';
   try {
-    const resp = await fetch(`${API_BASE_URL}/api/provinces`);
+    const resp = await fetch(API_URLS.provinces);
     if (!resp.ok) throw new Error();
     const data = await resp.json();
     provinceEl.innerHTML = '<option value="">Chọn tỉnh/thành phố</option>';
@@ -388,7 +393,7 @@ async function loadProvinces() {
     if (found) provinceEl.value = found;
   } catch {
     provinceEl.innerHTML = '<option value="">Không tải được danh sách tỉnh/thành</option>';
-    statusTextEl.textContent = `Không kết nối được backend (${API_BASE_URL}).`;
+    statusTextEl.textContent = `Không kết nối được backend (${API_BASE_URL || "same-origin"}).`;
   }
 }
 
@@ -413,14 +418,26 @@ async function runOcr() {
   try {
     const form = new FormData();
     form.append("image", file);
-    const resp = await fetch(`${API_BASE_URL}/api/ocr-coordinates`, { method: "POST", body: form });
-    const data = await resp.json();
+    console.log("[OCR] API_BASE_URL =", API_BASE_URL);
+    console.log("[OCR] OCR upload URL =", API_URLS.ocrCoordinates);
+    console.log("[OCR] file =", { name: file.name, size: file.size, type: file.type });
+
+    const resp = await fetch(API_URLS.ocrCoordinates, { method: "POST", body: form });
+    const rawBody = await resp.text();
+    let data = {};
+    try {
+      data = rawBody ? JSON.parse(rawBody) : {};
+    } catch (_err) {
+      data = { message: rawBody || "Empty response body." };
+    }
+
     if (!resp.ok || data?.ok === false) {
       const friendly = mapOcrErrorMessage(data);
       const stage = data?.stage ? ` [giai đoạn: ${data.stage}]` : "";
       const suggestion = data?.suggestion ? ` Gợi ý: ${data.suggestion}` : "";
-      setOcrStatus(`${friendly}${stage}.${suggestion}`, "error");
-      renderOcrWarnings([data?.detail || "Yêu cầu OCR thất bại."]);
+      const bodyMessage = data?.message || data?.detail || rawBody || "Yêu cầu OCR thất bại.";
+      setOcrStatus(`${friendly}${stage}. HTTP ${resp.status}.${suggestion}`.trim(), "error");
+      renderOcrWarnings([`HTTP ${resp.status}: ${bodyMessage}`]);
       return;
     }
 
@@ -431,7 +448,8 @@ async function runOcr() {
     ocrRawTextEl.textContent = data.raw_text || "";
     ocrRawDetailsEl.classList.remove("hidden");
   } catch (err) {
-    setOcrStatus(`Lỗi OCR: ${err.message}`, "error");
+    setOcrStatus(`Không kết nối được API OCR. URL: ${API_URLS.ocrCoordinates}`, "error");
+    renderOcrWarnings([err?.message || "Network error"]);
   } finally {
     setOcrLoading(false);
   }
@@ -451,7 +469,7 @@ async function convertCoordinates() {
   setLoading(true);
   statusTextEl.textContent = "";
   try {
-    const resp = await fetch(`${API_BASE_URL}/api/convert`, {
+    const resp = await fetch(API_URLS.convert, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ province, value1, value2, input_mode: inputMode, current_lat: null, current_lng: null }),
@@ -501,7 +519,7 @@ async function convertSelectedCandidates() {
     const rows = await Promise.all(
       selected.map(async (item) => {
         try {
-          const resp = await fetch(`${API_BASE_URL}/api/convert`, {
+          const resp = await fetch(API_URLS.convert, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ province, value1: item.value1, value2: item.value2, input_mode: "auto", current_lat: null, current_lng: null }),
