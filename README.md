@@ -12,7 +12,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2) Run API
+### 2) Run API + Frontend
 
 ```bash
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
@@ -22,30 +22,33 @@ Health check:
 
 ```bash
 GET http://localhost:8000/health
+GET http://localhost:8000/api/health
 ```
 
-Convert endpoint:
+Frontend served by FastAPI:
+
+```bash
+http://localhost:8000/
+```
+
+API endpoints:
 
 ```bash
 POST http://localhost:8000/api/convert
-```
-
-Province list endpoint:
-
-```bash
-GET http://localhost:8000/api/provinces
+GET  http://localhost:8000/api/provinces
+GET  http://localhost:8000/api/ocr-status
+POST http://localhost:8000/api/ocr-coordinates
 ```
 
 ### 3) Run tests
 
 ```bash
-pytest -q
+python -m pytest -q
 ```
 
-## Frontend MVP (Mobile-first Web UI)
+## Frontend local static mode (optional)
 
-### Desktop run
-
+Desktop:
 1. Start backend:
    - `uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000`
 2. Serve frontend:
@@ -53,66 +56,42 @@ pytest -q
 3. Open:
    - `http://localhost:5500/frontend/index.html`
 
-### Phone LAN run (same Wi-Fi)
-
+Phone LAN:
 1. Start backend:
    - `uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000`
 2. Serve frontend:
    - `python -m http.server 5500 --bind 0.0.0.0`
 3. Open on phone:
    - `http://<computer-ip>:5500/frontend/index.html`
-4. By default, frontend will call:
-   - `http://<same-hostname>:8000`
-   - Example: `192.168.1.13:5500` -> `192.168.1.13:8000`
-
-### API_BASE_URL override (if needed)
-
-- File: `frontend/config.js`
-- Set:
-  - `API_BASE_URL_OVERRIDE: "http://<computer-ip>:8000"`
-- If override is empty, app auto-resolves backend URL:
-  - localhost/127.0.0.1 -> `http://localhost:8000`
-  - others -> `http://<same-hostname>:8000`
-
-### GPS note
-
-- GPS on phone may require HTTPS (secure context), depending on browser/device policy.
-- `localhost` is typically allowed for desktop local testing.
-- Frontend co fallback nhap tay vi tri hien tai: dan `Lat,Long` hoac link Google Maps va bam `Doc vi tri tu noi dung da dan`.
 
 ## OCR (Experimental)
 
-- Endpoint: `POST /api/ocr-coordinates` (multipart form field: `image`).
-- OCR status endpoint: `GET /api/ocr-status`.
-- OCR does not save uploaded images permanently.
-- Recommendation: only crop/upload the coordinate area from GCN if possible.
-- OCR is experimental. User must verify OCR values before pressing `Convert`.
+- OCR is experimental. User must verify OCR values before conversion.
+- Uploaded images are not stored permanently.
+- Recommended: crop only coordinate-table area from GCN.
 
-Tesseract setup:
+## Render deployment (Docker)
 
-1. Install Tesseract OCR binary on your OS.
-2. Ensure `tesseract` is available on system `PATH`.
-3. Install Python dependencies:
-   - `pip install -r requirements.txt`
-4. If Tesseract is missing, API returns a clear `503` error with install guidance.
+1. Ensure repository contains root `Dockerfile`.
+2. In Render, create a new **Web Service** from this repo.
+3. Select **Docker** runtime.
+4. Build/deploy with root `Dockerfile`.
+5. Start command in Docker image:
+   - `uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}`
+6. After deploy, verify:
+   - `GET /api/health`
+   - `GET /api/provinces`
+   - Open `/` to confirm frontend is served.
 
-Diagnostic error format (`/api/ocr-coordinates`):
-
-```json
-{
-  "ok": false,
-  "stage": "tesseract_run",
-  "error_code": "TESSERACT_RUN_FAILED",
-  "message": "Tesseract OCR run failed.",
-  "detail": "...",
-  "suggestion": "..."
-}
-```
+Docker image installs OCR system packages:
+- `tesseract-ocr`
+- `tesseract-ocr-eng`
+- `tesseract-ocr-vie` (best-effort install)
+- `libglib2.0-0`
+- `libgl1`
 
 ## Notes
 
 - Runtime conversion logic reads `config/vn2000_local_crs.csv`.
-- Reference Excel files under `data/reference_excel` are used only for data extraction/testing.
-- Google Maps is URL-based only; no Google Maps API is used in MVP v0.1.
-- OCR is not implemented.
-- GPS is stored in frontend memory state only (not persisted to database/localStorage).
+- Reference Excel files under `data/reference_excel` are only for extraction/testing.
+- Google Maps integration is URL-based only; no Google Maps API in MVP.

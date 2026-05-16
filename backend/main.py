@@ -7,6 +7,7 @@ from typing import List, Literal, Optional
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.core.coordinate_converter import CoordinateConverter, InputMode
@@ -24,6 +25,8 @@ from backend.services.qr_service import build_qr_png_base64
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT_DIR / "config" / "vn2000_local_crs.csv"
+FRONTEND_DIR = ROOT_DIR / "frontend"
+ASSETS_DIR = ROOT_DIR / "assets"
 
 app = FastAPI(title="VietinBank VN2000 Coordinate Checker API", version="0.1.0")
 config_loader = VN2000ConfigLoader(CONFIG_PATH)
@@ -74,6 +77,9 @@ class OCRCandidateResponse(BaseModel):
 class OCRCoordinatesResponse(BaseModel):
     ok: bool = True
     raw_text: str
+    preprocessing_method: str
+    ocr_config: str
+    ocr_language: str
     candidates: List[OCRCandidateResponse]
     warnings: List[str]
 
@@ -97,6 +103,11 @@ class OCRStatusResponse(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/api/health")
+def api_health() -> dict:
     return {"status": "ok"}
 
 
@@ -167,13 +178,13 @@ async def ocr_coordinates(image: UploadFile = File(...)):
         return JSONResponse(status_code=err.status_code, content=err.to_dict())
 
     try:
-        raw_text = run_ocr_with_diagnostics(content)
+        ocr_result = run_ocr_with_diagnostics(content)
     except OCRError as err:
         logger.error("OCR error stage=%s code=%s detail=%s", err.stage, err.error_code, err.detail)
         return JSONResponse(status_code=err.status_code, content=err.to_dict())
 
     try:
-        candidates, parse_warnings = extract_coordinate_candidates_with_warnings(raw_text)
+        candidates, parse_warnings = extract_coordinate_candidates_with_warnings(ocr_result.raw_text)
     except Exception as exc:
         logger.exception("Coordinate parse failed after OCR text extraction.")
         err = OCRError(
@@ -187,6 +198,7 @@ async def ocr_coordinates(image: UploadFile = File(...)):
         return JSONResponse(status_code=err.status_code, content=err.to_dict())
 
     warnings: List[str] = []
+    warnings.extend(ocr_result.warnings)
     warnings.extend(parse_warnings)
     if not candidates:
         warnings.append("OCR doc duoc anh nhung chua tim thay cap toa do. Hay crop sat vung bang toa do va thu lai.")
@@ -194,7 +206,10 @@ async def ocr_coordinates(image: UploadFile = File(...)):
 
     return OCRCoordinatesResponse(
         ok=True,
-        raw_text=raw_text,
+        raw_text=ocr_result.raw_text,
+        preprocessing_method=ocr_result.preprocessing_method,
+        ocr_config=ocr_result.ocr_config,
+        ocr_language=ocr_result.language,
         candidates=[
             OCRCandidateResponse(
                 point_label=item.point_label,
@@ -251,3 +266,9 @@ def convert_coordinates(payload: ConvertRequest) -> ConvertResponse:
         used_order=conversion.used_order,
         warnings=warnings,
     )
+
+
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

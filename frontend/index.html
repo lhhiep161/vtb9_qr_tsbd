@@ -82,7 +82,11 @@
             </thead>
             <tbody id="ocrCandidatesTableBody"></tbody>
           </table>
-          <button id="previewSelectedBtn" class="secondary-btn" type="button">Xem trước các cặp đã chọn</button>
+
+          <div class="ocr-actions">
+            <button id="previewSelectedBtn" class="secondary-btn" type="button">Xem trước các cặp đã chọn</button>
+            <button id="convertSelectedBtn" class="secondary-btn" type="button">Chuyển đổi các điểm đã chọn</button>
+          </div>
           <ul id="ocrBatchPreview" class="ocr-batch-preview"></ul>
         </div>
 
@@ -95,6 +99,30 @@
           <summary>Xem nội dung OCR thô</summary>
           <pre id="ocrRawText"></pre>
         </details>
+      </section>
+
+      <section id="multiResultCard" class="card result-card hidden">
+        <h2 class="section-title">Kết quả chuyển đổi nhiều điểm</h2>
+        <div class="multi-result-actions">
+          <button id="copyAllLatLngBtn" class="secondary-btn" type="button">Sao chép tất cả Lat/Long</button>
+          <button id="downloadCsvBtn" class="secondary-btn" type="button">Tải kết quả CSV</button>
+        </div>
+        <p id="multiResultStatusText" class="status-text"></p>
+        <div class="multi-table-wrap">
+          <table class="multi-table">
+            <thead>
+              <tr>
+                <th>Điểm</th>
+                <th>Giá trị 1</th>
+                <th>Giá trị 2</th>
+                <th>Latitude (WGS84)</th>
+                <th>Longitude (WGS84)</th>
+                <th>Google Maps</th>
+              </tr>
+            </thead>
+            <tbody id="multiResultTableBody"></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="resultCard" class="card result-card hidden">

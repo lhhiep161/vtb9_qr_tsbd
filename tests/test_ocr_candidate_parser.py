@@ -50,6 +50,25 @@ def test_extract_exact_row_pairs_without_cross_row_pairing() -> None:
     assert actual == expected
 
 
+def test_row_with_comma_decimal_is_parsed() -> None:
+    text = """
+    1 1203431,09 599932,66
+    2 1203428,80 599912,80
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    assert len(candidates) == 2
+    assert round(candidates[0].value1, 2) == 1203431.09
+    assert round(candidates[0].value2, 2) == 599932.66
+
+
+def test_row_with_extra_length_value_keeps_first_xy_pair() -> None:
+    text = "2 1203428.80 599912.80 4.20"
+    candidates = extract_coordinate_candidates_from_text(text)
+    assert len(candidates) == 1
+    assert round(candidates[0].value1, 2) == 1203428.80
+    assert round(candidates[0].value2, 2) == 599912.80
+
+
 def test_column_context_correction_case_a() -> None:
     text = """
     1 1203431.09 599932.66
