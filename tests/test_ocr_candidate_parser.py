@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from backend.services.ocr_service import extract_coordinate_candidates_from_text, extract_coordinate_candidates_with_warnings
+
+
+def test_extract_multiple_pairs_from_table_like_text() -> None:
+    text = """
+    Diem X Y
+    1 568262.924 1255172.51
+    2 568300.125 1255200.75
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    assert len(candidates) >= 2
+    assert candidates[0].point_label in {"1", "Diem", "1."}
+    assert abs(candidates[0].value1 - 568262.924) < 1e-6
+    assert abs(candidates[0].value2 - 1255172.51) < 1e-6
+
+
+def test_extract_pair_from_xy_separate_lines() -> None:
+    text = """
+    Moc A
+    X: 568262,924
+    Y: 1255172,51
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    assert len(candidates) >= 1
+    assert abs(candidates[0].value1 - 568262.924) < 1e-6
+    assert abs(candidates[0].value2 - 1255172.51) < 1e-6
+
+
+def test_extract_exact_row_pairs_without_cross_row_pairing() -> None:
+    text = """
+    BANG LIET KE TOA DO
+    So hieu dinh thua Toa do X Y Chieu dai
+    1 1203431.09 599932.66 20.00
+    2 1203428.80 599912.80 4.20
+    3 1203424.72 599913.81 20.00
+    4 1203427.01 599933.67 4.20
+    1 1203431.09 599932.66
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    actual = [(c.point_label, round(c.value1, 2), round(c.value2, 2), c.confidence_note) for c in candidates]
+    expected = [
+        ("1", 1203431.09, 599932.66, "detected from same OCR row"),
+        ("2", 1203428.8, 599912.8, "detected from same OCR row"),
+        ("3", 1203424.72, 599913.81, "detected from same OCR row"),
+        ("4", 1203427.01, 599933.67, "detected from same OCR row"),
+        ("1", 1203431.09, 599932.66, "detected from same OCR row"),
+    ]
+    assert actual == expected
+
+
+def test_column_context_correction_case_a() -> None:
+    text = """
+    1 1203431.09 599932.66
+    2 1203428.80 599912.80
+    3 1203424.72 $99913.81
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    assert len(candidates) == 3
+    assert round(candidates[2].value2, 2) == 599913.81
+    assert any("using column prefix 599" in c for c in candidates[2].corrections)
+
+
+def test_column_context_correction_case_b() -> None:
+    text = """
+    1 1203431.09 699932.66
+    2 1203428.80 699912.80
+    3 1203424.72 $99913.81
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    assert len(candidates) == 3
+    assert round(candidates[2].value2, 2) == 699913.81
+    assert any("using column prefix 699" in c for c in candidates[2].corrections)
+
+
+def test_column_context_insufficient_case_c_no_autocorrect() -> None:
+    text = """
+    1 1203431.09 $99913.81
+    """
+    candidates, warnings = extract_coordinate_candidates_with_warnings(text)
+    assert len(candidates) == 0
+    assert any("not enough valid column context" in w for w in warnings)
+
+
+def test_strict_row_parser_pipe_sample_no_cross_row_pairs() -> None:
+    text = """
+    1203431.09 | 599932.66
+    1203428.80 | 599912.80 | 20.00
+    1203424.72 | $99913.81 anap
+    1203427.01 | $99933.67 yon
+    1203431.09 | $99932.66 .
+    """
+    candidates = extract_coordinate_candidates_from_text(text)
+    actual_pairs = [(round(c.value1, 2), round(c.value2, 2)) for c in candidates]
+    expected_pairs = [
+        (1203431.09, 599932.66),
+        (1203428.80, 599912.80),
+        (1203424.72, 599913.81),
+        (1203427.01, 599933.67),
+        (1203431.09, 599932.66),
+    ]
+    assert actual_pairs == expected_pairs
+
+    # Explicitly ensure wrong cross-row pairs are absent.
+    wrong_pairs = {
+        (599932.66, 1203428.80),
+        (599912.80, 1203424.72),
+        (99913.81, 1203427.01),
+    }
+    assert wrong_pairs.isdisjoint(set(actual_pairs))

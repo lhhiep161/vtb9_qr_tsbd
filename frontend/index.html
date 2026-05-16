@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VietinBank VN2000 Coordinate Checker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="brand-header">
+        <img id="brandLogo" src="../assets/brand/logo-vietinbank.png" alt="VietinBank logo" />
+        <div id="brandFallback" class="brand-fallback">VietinBank</div>
+        <p class="brand-subtitle">VN2000 Coordinate Checker</p>
+      </header>
+
+      <section class="card">
+        <h1 class="section-title">Chuyển đổi tọa độ</h1>
+        <p class="section-helper">Nhập thông tin tọa độ theo GCN để chuyển đổi sang WGS84 và mở nhanh trên Google Maps.</p>
+
+        <label class="field-label" for="province">Tỉnh/Thành phố</label>
+        <select id="province" class="field-input" required>
+          <option value="">Đang tải danh sách tỉnh/thành...</option>
+        </select>
+
+        <label class="field-label" for="value1">Giá trị tọa độ 1</label>
+        <input id="value1" class="field-input" type="number" step="any" placeholder="Ví dụ: 568262.924" required />
+
+        <label class="field-label" for="value2">Giá trị tọa độ 2</label>
+        <input id="value2" class="field-input" type="number" step="any" placeholder="Ví dụ: 1255172.51" required />
+
+        <label class="field-label" for="inputMode">Chế độ nhập</label>
+        <select id="inputMode" class="field-input">
+          <option value="auto">Tự động (auto)</option>
+          <option value="easting_northing">Giá trị 1 = Easting, Giá trị 2 = Northing</option>
+          <option value="northing_easting">Giá trị 1 = Northing, Giá trị 2 = Easting</option>
+        </select>
+
+        <section class="hidden">
+          <button id="gpsBtn" class="gps-btn" type="button">Lấy vị trí hiện tại</button>
+          <p id="gpsStatusText" class="gps-status-text">Chưa lấy vị trí GPS.</p>
+          <section class="manual-location">
+            <h3 class="subsection-title">Vị trí hiện tại để đối chiếu</h3>
+            <p class="manual-note">Nếu GPS không hoạt động, hãy dán Lat/Long hoặc link Google Maps làm dữ liệu thay thế.</p>
+            <label class="field-label" for="manualLocationInput">Dán Lat/Long hoặc link Google Maps vị trí hiện tại</label>
+            <input id="manualLocationInput" class="field-input" type="text" />
+            <button id="parseLocationBtn" class="secondary-btn" type="button">Đọc vị trí từ nội dung đã dán</button>
+            <p id="manualParseStatusText" class="manual-status-text"></p>
+          </section>
+        </section>
+
+        <button id="convertBtn" class="convert-btn" type="button">Chuyển đổi</button>
+        <p id="statusText" class="status-text"></p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Đọc tọa độ từ ảnh GCN</h2>
+        <p class="manual-note">Nên chụp/crop sát vùng bảng tọa độ, không chụp toàn bộ GCN nếu không cần.</p>
+
+        <div class="upload-actions">
+          <button id="captureBtn" class="secondary-btn" type="button">Chụp ảnh vùng tọa độ</button>
+          <button id="pickFileBtn" class="secondary-btn" type="button">Chọn ảnh có sẵn</button>
+          <input id="ocrImageCaptureInput" class="hidden" type="file" accept="image/*" />
+          <input id="ocrImageInput" class="hidden" type="file" accept="image/*" />
+        </div>
+        <p id="ocrFileNameText" class="manual-status-text">Chưa chọn ảnh.</p>
+
+        <button id="ocrBtn" class="secondary-btn" type="button">OCR tọa độ</button>
+        <p id="ocrStatusText" class="manual-status-text"></p>
+        <ul id="ocrWarnings" class="ocr-warnings"></ul>
+
+        <div id="ocrCandidatesTableWrap" class="ocr-table-wrap hidden">
+          <table class="ocr-table">
+            <thead>
+              <tr>
+                <th>Chọn</th>
+                <th>Điểm</th>
+                <th>Giá trị 1</th>
+                <th>Giá trị 2</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="ocrCandidatesTableBody"></tbody>
+          </table>
+          <button id="previewSelectedBtn" class="secondary-btn" type="button">Xem trước các cặp đã chọn</button>
+          <ul id="ocrBatchPreview" class="ocr-batch-preview"></ul>
+        </div>
+
+        <details id="ocrMetaDetails" class="ocr-raw hidden">
+          <summary>Xem chi tiết OCR</summary>
+          <ul id="ocrMetaList"></ul>
+        </details>
+
+        <details id="ocrRawDetails" class="ocr-raw hidden">
+          <summary>Xem nội dung OCR thô</summary>
+          <pre id="ocrRawText"></pre>
+        </details>
+      </section>
+
+      <section id="resultCard" class="card result-card hidden">
+        <h2 class="section-title">Kết quả</h2>
+        <div class="result-row"><span>Latitude (WGS84)</span><strong id="resultLat">-</strong></div>
+        <div class="result-row"><span>Longitude (WGS84)</span><strong id="resultLng">-</strong></div>
+        <div class="result-actions">
+          <button id="copyLatLngBtn" class="secondary-btn" type="button">Sao chép Lat/Long</button>
+          <button id="copyMapsBtn" class="secondary-btn" type="button">Sao chép link Google Maps</button>
+          <button id="openMapsBtn" class="secondary-btn" type="button">Mở Google Maps</button>
+        </div>
+        <div class="result-row"><span>Thứ tự tọa độ đã dùng</span><strong id="resultOrder">-</strong></div>
+        <div class="result-row"><span>Google Maps</span><a id="resultMaps" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+        <div class="result-row warnings">
+          <span>Cảnh báo</span>
+          <ul id="resultWarnings"></ul>
+        </div>
+        <div id="qrBox" class="qr-box hidden">
+          <p class="qr-title">Mã QR Google Maps</p>
+          <img id="resultQr" alt="Google Maps QR code" />
+          <button id="downloadQrBtn" class="secondary-btn qr-download-btn" type="button">Tải ảnh QR</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

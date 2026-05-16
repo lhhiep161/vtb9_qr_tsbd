@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Environment
+.env
+*.env
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.cache/
+
+# Logs
+*.log
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary / uploads
+data/uploads/
+data/temp/
+tmp/
+temp/
+
+# Large/generated files
+*.zip
+*.rar
+*.7z
+
+# Optional: do not commit customer/real GCN images
+*.jpg
+*.jpeg
+*.png
+!assets/brand/*.png

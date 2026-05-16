@@ -1,0 +1,2 @@
+province,input_x,input_y,expected_lat,expected_lng,central_meridian_decimal,zone_width,source,note
+Ninh Thuận,568262.924,1255172.51,11.349358065695681,108.87720114429756,108.25,3,reference_excel,Single sample extracted from AJS-Vn2000=>LatLong (main sheet)
