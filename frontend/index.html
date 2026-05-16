@@ -124,6 +124,39 @@
         </div>
       </section>
 
+      <section id="mapsQrCard" class="card">
+        <h2 class="section-title">Tạo QR từ Google Maps</h2>
+        <p class="section-helper">Dán link Google Maps hoặc tọa độ Lat/Long có sẵn để tạo mã QR vị trí.</p>
+        <label class="field-label" for="mapsQrInput">Link Google Maps hoặc tọa độ Lat/Long</label>
+        <textarea
+          id="mapsQrInput"
+          class="field-input"
+          rows="4"
+          placeholder="10.7769,106.7009&#10;https://www.google.com/maps?q=10.7769,106.7009&#10;https://www.google.com/maps/@10.7769,106.7009,17z&#10;https://maps.app.goo.gl/..."
+        ></textarea>
+        <button id="mapsQrBtn" class="convert-btn" type="button">Tạo QR Google Maps</button>
+        <p id="mapsQrStatusText" class="status-text"></p>
+
+        <section id="mapsQrResultCard" class="result-card hidden">
+          <div class="result-row"><span>Latitude</span><strong id="mapsQrLat">-</strong></div>
+          <div class="result-row"><span>Longitude</span><strong id="mapsQrLng">-</strong></div>
+          <div class="result-row"><span>Google Maps</span><a id="mapsQrLink" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+          <div class="result-actions">
+            <button id="mapsQrOpenBtn" class="secondary-btn" type="button">Mở Google Maps</button>
+            <button id="mapsQrCopyBtn" class="secondary-btn" type="button">Sao chép link</button>
+            <button id="mapsQrDownloadBtn" class="secondary-btn" type="button">Tải ảnh QR</button>
+          </div>
+          <div id="mapsQrImageBox" class="qr-box hidden">
+            <img id="mapsQrImage" alt="Google Maps QR code" />
+          </div>
+          <ul id="mapsQrWarnings" class="ocr-warnings"></ul>
+          <details id="mapsQrResolvedDetails" class="ocr-raw hidden">
+            <summary>Xem link đã xử lý</summary>
+            <pre id="mapsQrResolvedText"></pre>
+          </details>
+        </section>
+      </section>
+
       <section id="resultCard" class="card result-card hidden">
         <h2 class="section-title">Kết quả</h2>
         <div class="result-row"><span>Latitude (WGS84)</span><strong id="resultLat">-</strong></div>

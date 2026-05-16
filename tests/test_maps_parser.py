@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.core.maps_parser import parse_lat_lng_from_text
+from backend.core.maps_parser import is_google_maps_short_link, parse_lat_lng_from_text
 
 
 def test_parse_plain_lat_lng_comma() -> None:
@@ -28,7 +28,11 @@ def test_parse_shortened_maps_link_not_supported() -> None:
     assert result is None
 
 
+def test_detect_shortened_maps_link() -> None:
+    assert is_google_maps_short_link("https://maps.app.goo.gl/xyz123") is True
+    assert is_google_maps_short_link("https://goo.gl/maps/xyz123") is True
+
+
 def test_parse_invalid_text_returns_none() -> None:
     result = parse_lat_lng_from_text("abc xyz")
     assert result is None
-

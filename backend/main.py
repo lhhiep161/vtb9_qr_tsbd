@@ -12,7 +12,13 @@ from pydantic import BaseModel, Field
 
 from backend.core.coordinate_converter import CoordinateConverter, InputMode
 from backend.core.distance_calculator import haversine_distance_meters
+from backend.core.google_maps_resolver import resolve_google_maps_short_link, validate_google_maps_url
 from backend.core.google_maps_url import build_google_maps_url
+from backend.core.maps_parser import (
+    is_google_maps_short_link,
+    parse_lat_lng_from_google_maps_url,
+    parse_lat_lng_from_text,
+)
 from backend.core.vn2000_config import VN2000ConfigError, VN2000ConfigLoader
 from backend.services.ocr_service import (
     OCRError,
@@ -102,6 +108,27 @@ class OCRStatusResponse(BaseModel):
     tesseract_version: str
     tesseract_cmd: str
     error: Optional[str]
+
+
+class GoogleMapsQRRequest(BaseModel):
+    input_text: str = Field(min_length=1)
+
+
+class GoogleMapsQRSuccessResponse(BaseModel):
+    ok: bool = True
+    latitude: float
+    longitude: float
+    google_maps_url: str
+    source_url: Optional[str]
+    resolved_url: Optional[str]
+    qr_png_base64: str
+    warnings: List[str]
+
+
+class GoogleMapsQRErrorResponse(BaseModel):
+    ok: bool = False
+    message: str
+    suggestion: str
 
 
 @app.get("/health")
@@ -290,6 +317,94 @@ def convert_coordinates(payload: ConvertRequest) -> ConvertResponse:
         used_order=conversion.used_order,
         warnings=warnings,
     )
+
+
+@app.post("/api/google-maps-qr", response_model=GoogleMapsQRSuccessResponse | GoogleMapsQRErrorResponse)
+def create_google_maps_qr(payload: GoogleMapsQRRequest):
+    value = payload.input_text.strip()
+    source_url: Optional[str] = None
+    resolved_url: Optional[str] = None
+    warnings: List[str] = []
+
+    try:
+        parsed = None
+        if value.startswith(("http://", "https://")):
+            validate_google_maps_url(value)
+            source_url = value
+            short_link = is_google_maps_short_link(value)
+            if short_link:
+                resolved_url = resolve_google_maps_short_link(value, timeout_seconds=8.0)
+            else:
+                resolved_url = value
+            validate_google_maps_url(resolved_url)
+            parsed = parse_lat_lng_from_google_maps_url(resolved_url)
+            if parsed is None and short_link:
+                return JSONResponse(
+                    status_code=400,
+                    content=GoogleMapsQRErrorResponse(
+                        ok=False,
+                        message="Không tìm thấy tọa độ trong link Google Maps rút gọn. Vui lòng mở link trên Google Maps và sao chép tọa độ hoặc link đầy đủ.",
+                        suggestion="Mở link rút gọn trên Google Maps, sau đó sao chép link đầy đủ hoặc Lat/Long.",
+                    ).model_dump(),
+                )
+        else:
+            parsed = parse_lat_lng_from_text(value)
+
+        if parsed is None:
+            return JSONResponse(
+                status_code=400,
+                content=GoogleMapsQRErrorResponse(
+                    ok=False,
+                    message="Không đọc được tọa độ từ nội dung đã dán. Vui lòng kiểm tra lại link hoặc nhập theo dạng: 10.7769,106.7009",
+                    suggestion="Nếu là link rút gọn, hãy mở link trên Google Maps rồi sao chép link đầy đủ hoặc tọa độ Lat/Long.",
+                ).model_dump(),
+            )
+
+        latitude, longitude = parsed
+        if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
+            return JSONResponse(
+                status_code=400,
+                content=GoogleMapsQRErrorResponse(
+                    ok=False,
+                    message="Tọa độ vượt ngoài phạm vi hợp lệ.",
+                    suggestion="Vui lòng kiểm tra lại định dạng Lat/Long.",
+                ).model_dump(),
+            )
+
+        if not (8.0 <= latitude <= 24.0 and 102.0 <= longitude <= 110.0):
+            warnings.append("Tọa độ không nằm trong phạm vi Việt Nam, vui lòng kiểm tra lại.")
+
+        maps_url = build_google_maps_url(latitude, longitude)
+        qr_png_base64 = build_qr_png_base64(maps_url)
+        return GoogleMapsQRSuccessResponse(
+            ok=True,
+            latitude=latitude,
+            longitude=longitude,
+            google_maps_url=maps_url,
+            source_url=source_url,
+            resolved_url=resolved_url,
+            qr_png_base64=qr_png_base64,
+            warnings=warnings,
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=400,
+            content=GoogleMapsQRErrorResponse(
+                ok=False,
+                message=str(exc),
+                suggestion="Vui lòng chỉ dùng link Google Maps hợp lệ hoặc nhập trực tiếp Lat/Long.",
+            ).model_dump(),
+        )
+    except Exception:
+        logger.exception("Google Maps QR creation failed.")
+        return JSONResponse(
+            status_code=500,
+            content=GoogleMapsQRErrorResponse(
+                ok=False,
+                message="Không thể xử lý nội dung đã dán ở thời điểm hiện tại.",
+                suggestion="Vui lòng thử lại hoặc dùng link Google Maps đầy đủ.",
+            ).model_dump(),
+        )
 
 
 if ASSETS_DIR.exists():

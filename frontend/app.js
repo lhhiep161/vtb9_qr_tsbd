@@ -9,6 +9,7 @@ const API_URLS = {
   provinces: `${API_BASE_URL}/api/provinces`,
   convert: `${API_BASE_URL}/api/convert`,
   ocrCoordinates: `${API_BASE_URL}/api/ocr-coordinates`,
+  googleMapsQr: `${API_BASE_URL}/api/google-maps-qr`,
 };
 
 const provinceEl = document.getElementById("province");
@@ -46,6 +47,22 @@ const multiResultStatusTextEl = document.getElementById("multiResultStatusText")
 const copyAllLatLngBtnEl = document.getElementById("copyAllLatLngBtn");
 const downloadCsvBtnEl = document.getElementById("downloadCsvBtn");
 
+const mapsQrInputEl = document.getElementById("mapsQrInput");
+const mapsQrBtnEl = document.getElementById("mapsQrBtn");
+const mapsQrStatusTextEl = document.getElementById("mapsQrStatusText");
+const mapsQrResultCardEl = document.getElementById("mapsQrResultCard");
+const mapsQrLatEl = document.getElementById("mapsQrLat");
+const mapsQrLngEl = document.getElementById("mapsQrLng");
+const mapsQrLinkEl = document.getElementById("mapsQrLink");
+const mapsQrOpenBtnEl = document.getElementById("mapsQrOpenBtn");
+const mapsQrCopyBtnEl = document.getElementById("mapsQrCopyBtn");
+const mapsQrDownloadBtnEl = document.getElementById("mapsQrDownloadBtn");
+const mapsQrImageBoxEl = document.getElementById("mapsQrImageBox");
+const mapsQrImageEl = document.getElementById("mapsQrImage");
+const mapsQrWarningsEl = document.getElementById("mapsQrWarnings");
+const mapsQrResolvedDetailsEl = document.getElementById("mapsQrResolvedDetails");
+const mapsQrResolvedTextEl = document.getElementById("mapsQrResolvedText");
+
 const resultLatEl = document.getElementById("resultLat");
 const resultLngEl = document.getElementById("resultLng");
 const resultOrderEl = document.getElementById("resultOrder");
@@ -61,6 +78,7 @@ const brandLogoEl = document.getElementById("brandLogo");
 const brandFallbackEl = document.getElementById("brandFallback");
 
 const state = { lastLatitude: null, lastLongitude: null, lastMapsUrl: "", multiRows: [] };
+const mapsQrState = { link: "", qrDataUrl: "" };
 
 brandLogoEl.addEventListener("error", () => {
   brandLogoEl.style.display = "none";
@@ -93,6 +111,11 @@ function normalizeConfidenceText(text) {
 function setLoading(isLoading) {
   convertBtnEl.disabled = isLoading;
   convertBtnEl.textContent = isLoading ? "Đang chuyển đổi..." : "Chuyển đổi";
+}
+
+function setMapsQrLoading(isLoading) {
+  mapsQrBtnEl.disabled = isLoading;
+  mapsQrBtnEl.textContent = isLoading ? "Đang tạo QR..." : "Tạo QR Google Maps";
 }
 
 function setOcrLoading(isLoading, mode = "fast") {
@@ -469,6 +492,75 @@ async function convertCoordinates() {
   }
 }
 
+function renderMapsQrWarnings(warnings) {
+  mapsQrWarningsEl.innerHTML = "";
+  (warnings || []).forEach((warning) => {
+    const li = document.createElement("li");
+    li.textContent = warning;
+    mapsQrWarningsEl.appendChild(li);
+  });
+}
+
+async function createMapsQr() {
+  const inputText = (mapsQrInputEl.value || "").trim();
+  if (!inputText) {
+    mapsQrStatusTextEl.textContent = "Vui lòng nhập nội dung trước khi tạo QR.";
+    return;
+  }
+
+  setMapsQrLoading(true);
+  mapsQrStatusTextEl.textContent = "";
+  mapsQrResultCardEl.classList.add("hidden");
+  mapsQrWarningsEl.innerHTML = "";
+  mapsQrResolvedDetailsEl.classList.add("hidden");
+
+  try {
+    const resp = await fetch(API_URLS.googleMapsQr, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input_text: inputText }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data?.ok === false) {
+      mapsQrStatusTextEl.textContent =
+        data?.message ||
+        "Không đọc được tọa độ từ nội dung đã dán. Vui lòng kiểm tra lại link hoặc nhập theo dạng: 10.7769,106.7009";
+      if (data?.suggestion) renderMapsQrWarnings([data.suggestion]);
+      return;
+    }
+
+    mapsQrLatEl.textContent = Number(data.latitude).toFixed(12);
+    mapsQrLngEl.textContent = Number(data.longitude).toFixed(12);
+    mapsQrLinkEl.href = data.google_maps_url || "#";
+    mapsQrLinkEl.textContent = data.google_maps_url || "-";
+    mapsQrState.link = data.google_maps_url || "";
+    mapsQrState.qrDataUrl = data.qr_png_base64 ? `data:image/png;base64,${data.qr_png_base64}` : "";
+
+    if (mapsQrState.qrDataUrl) {
+      mapsQrImageEl.src = mapsQrState.qrDataUrl;
+      mapsQrImageBoxEl.classList.remove("hidden");
+    } else {
+      mapsQrImageEl.removeAttribute("src");
+      mapsQrImageBoxEl.classList.add("hidden");
+    }
+
+    renderMapsQrWarnings((data.warnings || []).map((w) => translateWarningText(w)));
+    if (data.resolved_url) {
+      mapsQrResolvedTextEl.textContent = `Link gốc: ${data.source_url || "-"}\nLink đã xử lý: ${data.resolved_url}`;
+      mapsQrResolvedDetailsEl.classList.remove("hidden");
+    } else {
+      mapsQrResolvedDetailsEl.classList.add("hidden");
+    }
+    mapsQrResultCardEl.classList.remove("hidden");
+    mapsQrStatusTextEl.textContent = "Đã tạo QR Google Maps thành công.";
+  } catch (_err) {
+    mapsQrStatusTextEl.textContent =
+      "Không đọc được tọa độ từ nội dung đã dán. Vui lòng kiểm tra lại link hoặc nhập theo dạng: 10.7769,106.7009";
+  } finally {
+    setMapsQrLoading(false);
+  }
+}
+
 async function convertSelectedCandidates() {
   const province = provinceEl.value.trim();
   if (!province) return void (statusTextEl.textContent = "Vui lòng chọn tỉnh/thành phố trước khi chuyển đổi nhiều điểm.");
@@ -547,6 +639,25 @@ downloadCsvBtnEl.addEventListener("click", () => {
   const header = "point_label,value1,value2,latitude,longitude,google_maps_url";
   const body = rows.map((r) => `"${String(r.point_label).replaceAll('"', '""')}",${r.value1},${r.value2},${r.latitude},${r.longitude},"${String(r.google_maps_url).replaceAll('"', '""')}"`);
   downloadTextFile("vietinbank-vn2000-multi-convert.csv", [header, ...body].join("\n"), "text/csv;charset=utf-8;");
+});
+
+mapsQrBtnEl.addEventListener("click", createMapsQr);
+mapsQrOpenBtnEl.addEventListener("click", () => {
+  if (!mapsQrState.link) return;
+  window.open(mapsQrState.link, "_blank", "noopener");
+});
+mapsQrCopyBtnEl.addEventListener("click", async () => {
+  if (!mapsQrState.link) return;
+  await copyText(mapsQrState.link, "Đã sao chép link Google Maps.");
+});
+mapsQrDownloadBtnEl.addEventListener("click", () => {
+  if (!mapsQrState.qrDataUrl.startsWith("data:image/png;base64,")) return;
+  const link = document.createElement("a");
+  link.href = mapsQrState.qrDataUrl;
+  link.download = "vietinbank-google-maps-qr.png";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 });
 
 loadProvinces();
