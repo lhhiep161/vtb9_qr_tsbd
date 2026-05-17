@@ -89,12 +89,15 @@ const copyAllLatLngBtnEl = document.getElementById("copyAllLatLngBtn");
 const downloadCsvBtnEl = document.getElementById("downloadCsvBtn");
 
 const mapsQrInputEl = document.getElementById("mapsQrInput");
+const useCurrentLocationBtnEl = document.getElementById("useCurrentLocationBtn");
+const locationStatusTextEl = document.getElementById("locationStatusText");
 const mapsQrBtnEl = document.getElementById("mapsQrBtn");
 const mapsQrStatusTextEl = document.getElementById("mapsQrStatusText");
 const mapsQrResultCardEl = document.getElementById("mapsQrResultCard");
 const mapsQrSourceEl = document.getElementById("mapsQrSource");
 const mapsQrLatEl = document.getElementById("mapsQrLat");
 const mapsQrLngEl = document.getElementById("mapsQrLng");
+const mapsQrAccuracyEl = document.getElementById("mapsQrAccuracy");
 const mapsQrLinkEl = document.getElementById("mapsQrLink");
 const mapsQrOpenBtnEl = document.getElementById("mapsQrOpenBtn");
 const mapsQrCopyBtnEl = document.getElementById("mapsQrCopyBtn");
@@ -120,7 +123,7 @@ const brandLogoEl = document.getElementById("brandLogo");
 const brandFallbackEl = document.getElementById("brandFallback");
 
 const state = { lastLatitude: null, lastLongitude: null, lastMapsUrl: "", activeFeature: "convert", ocrSingle: null };
-const mapsQrState = { link: "", qrDataUrl: "" };
+const mapsQrState = { link: "", qrDataUrl: "", accuracyMeters: null };
 
 function toVietnameseCoordinateSource(source) {
   if (source === "plus_code") return "Plus Code";
@@ -167,6 +170,20 @@ function setLoading(isLoading) {
 function setMapsQrLoading(isLoading) {
   mapsQrBtnEl.disabled = isLoading;
   mapsQrBtnEl.textContent = isLoading ? "Đang tạo QR..." : "Tạo QR Google Maps";
+}
+
+function setLocationLoading(isLoading) {
+  if (!useCurrentLocationBtnEl) return;
+  useCurrentLocationBtnEl.disabled = isLoading;
+  useCurrentLocationBtnEl.textContent = isLoading ? "Đang lấy vị trí..." : "📍 Dùng vị trí của tôi";
+}
+
+function setLocationStatus(message, type = "muted") {
+  if (!locationStatusTextEl) return;
+  locationStatusTextEl.textContent = message;
+  locationStatusTextEl.classList.remove("error", "success");
+  if (type === "error") locationStatusTextEl.classList.add("error");
+  if (type === "success") locationStatusTextEl.classList.add("success");
 }
 
 function setOcrLoading(isLoading, mode = "fast") {
@@ -621,6 +638,7 @@ async function createMapsQr() {
   mapsQrResultCardEl.classList.add("hidden");
   mapsQrWarningsEl.innerHTML = "";
   mapsQrResolvedDetailsEl.classList.add("hidden");
+  mapsQrState.accuracyMeters = null;
 
   try {
     const resp = await fetch(API_URLS.googleMapsQr, {
@@ -642,6 +660,7 @@ async function createMapsQr() {
     mapsQrSourceEl.textContent = toVietnameseCoordinateSource(data.coordinate_source);
     mapsQrLinkEl.href = data.google_maps_url || "#";
     mapsQrLinkEl.textContent = data.google_maps_url || "-";
+    mapsQrAccuracyEl.textContent = "-";
     mapsQrState.link = data.google_maps_url || "";
     mapsQrState.qrDataUrl = data.qr_png_base64 ? `data:image/png;base64,${data.qr_png_base64}` : "";
 
@@ -667,6 +686,171 @@ async function createMapsQr() {
       "Không đọc được tọa độ từ nội dung đã dán. Vui lòng kiểm tra lại link hoặc nhập theo dạng: 10.7769,106.7009";
   } finally {
     setMapsQrLoading(false);
+  }
+}
+
+function buildGoogleMapsUrlFromLatLng(latitude, longitude) {
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
+
+function isLocalhostHostname(hostname) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+function isPrivateNetworkHostname(hostname) {
+  if (!hostname) return false;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  const m = hostname.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (!m) return false;
+  const second = Number(m[1]);
+  return second >= 16 && second <= 31;
+}
+
+async function getPermissionStateForDebug() {
+  try {
+    if (!navigator.permissions?.query) return "unsupported";
+    const status = await navigator.permissions.query({ name: "geolocation" });
+    return status?.state || "unknown";
+  } catch {
+    return "unavailable";
+  }
+}
+
+function handleLocationError(error, options = {}) {
+  const secureContextChecked = options?.secureContextChecked === true;
+  const isSecure = options?.isSecureContext === true;
+  if (secureContextChecked && !isSecure) {
+    return "Tính năng lấy vị trí cần chạy trên HTTPS hoặc localhost. Vui lòng mở bằng domain HTTPS hoặc dùng app đã cài.";
+  }
+  if (!error) return "Không lấy được vị trí hiện tại. Vui lòng bật GPS/định vị và thử lại.";
+  if (error.code === 1) return "Bạn chưa cấp quyền vị trí. Vui lòng cấp quyền vị trí trong trình duyệt/ứng dụng.";
+  if (error.code === 2) return "Không lấy được vị trí hiện tại. Vui lòng bật GPS/định vị và thử lại.";
+  if (error.code === 3) return "Lấy vị trí quá lâu. Vui lòng kiểm tra GPS/kết nối mạng và thử lại.";
+  return "Không lấy được vị trí hiện tại. Vui lòng thử lại.";
+}
+
+async function getCurrentLocationForQR() {
+  const hostname = window.location?.hostname || "";
+  const secure = window.isSecureContext === true;
+  const isLocalhost = isLocalhostHostname(hostname);
+  const isPrivateHttp = window.location?.protocol === "http:" && isPrivateNetworkHostname(hostname);
+  const permissionState = await getPermissionStateForDebug();
+
+  if (!navigator.geolocation) {
+    throw { type: "UNSUPPORTED", debug: { permissionState } };
+  }
+
+  if (!secure && !isLocalhost) {
+    if (isPrivateHttp) {
+      throw {
+        type: "INSECURE_CONTEXT_PRIVATE_HTTP",
+        debug: { permissionState },
+      };
+    }
+    throw {
+      type: "INSECURE_CONTEXT",
+      debug: { permissionState },
+    };
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ pos, permissionState }),
+      (err) => reject({ type: "GEO_ERROR", error: err, permissionState }),
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      },
+    );
+  });
+}
+
+async function handleUseCurrentLocation() {
+  setLocationLoading(true);
+  setLocationStatus("Đang lấy vị trí hiện tại...", "muted");
+  try {
+    const { pos: position, permissionState } = await getCurrentLocationForQR();
+    const latitude = Number(position.coords?.latitude);
+    const longitude = Number(position.coords?.longitude);
+    const accuracy = Number(position.coords?.accuracy);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error("INVALID_COORDINATE");
+    }
+    const latRounded = latitude.toFixed(6);
+    const lngRounded = longitude.toFixed(6);
+    const mapsLink = buildGoogleMapsUrlFromLatLng(latRounded, lngRounded);
+    mapsQrInputEl.value = mapsLink;
+    mapsQrState.accuracyMeters = Number.isFinite(accuracy) ? accuracy : null;
+
+    const statusParts = [`Đã lấy vị trí: ${latRounded}, ${lngRounded}`];
+    if (Number.isFinite(accuracy)) statusParts.push(`Độ chính xác khoảng ${Math.round(accuracy)}m`);
+    setLocationStatus(statusParts.join(" • "), "success");
+    console.info("[GeoQR][Geolocation] success", {
+      url: window.location.href,
+      secureContext: window.isSecureContext,
+      permissionState,
+      latitude: latRounded,
+      longitude: lngRounded,
+      accuracy: Number.isFinite(accuracy) ? Math.round(accuracy) : null,
+    });
+
+    await createMapsQr();
+    mapsQrSourceEl.textContent = "Vị trí hiện tại của thiết bị";
+    if (Number.isFinite(accuracy)) {
+      mapsQrAccuracyEl.textContent = `Khoảng ${Math.round(accuracy)}m`;
+      if (accuracy > 100) {
+        const existingWarnings = Array.from(mapsQrWarningsEl.querySelectorAll("li")).map((li) => li.textContent).filter(Boolean);
+        renderMapsQrWarnings([
+          "Vị trí hiện tại có độ chính xác thấp. Bạn có thể thử lại để lấy vị trí chính xác hơn.",
+          ...existingWarnings,
+        ]);
+      }
+    } else {
+      mapsQrAccuracyEl.textContent = "-";
+    }
+  } catch (err) {
+    const debugPayload = {
+      url: window.location.href,
+      secureContext: window.isSecureContext,
+      permissionState: err?.permissionState || err?.debug?.permissionState || "unknown",
+      geolocationErrorCode: err?.error?.code ?? null,
+      geolocationErrorMessage: err?.error?.message ?? err?.message ?? String(err),
+    };
+    console.warn("[GeoQR][Geolocation] failure", debugPayload);
+
+    if (err?.type === "UNSUPPORTED") {
+      setLocationStatus("Thiết bị hoặc trình duyệt không hỗ trợ lấy vị trí hiện tại.", "error");
+      return;
+    }
+    if (err?.type === "INSECURE_CONTEXT_PRIVATE_HTTP") {
+      setLocationStatus(
+        "Tính năng lấy vị trí cần chạy trên HTTPS hoặc localhost. Với IP nội bộ (192.168.x.x), vui lòng dùng domain HTTPS production hoặc app đã cài.",
+        "error",
+      );
+      return;
+    }
+    if (err?.type === "INSECURE_CONTEXT") {
+      setLocationStatus(
+        "Tính năng lấy vị trí cần chạy trên HTTPS hoặc localhost. Vui lòng mở bằng domain HTTPS hoặc dùng app đã cài.",
+        "error",
+      );
+      return;
+    }
+    if (err?.message === "INVALID_COORDINATE") {
+      setLocationStatus("Không đọc được tọa độ hợp lệ từ vị trí hiện tại. Vui lòng thử lại.", "error");
+      return;
+    }
+    setLocationStatus(
+      handleLocationError(err?.error, {
+        secureContextChecked: true,
+        isSecureContext: window.isSecureContext === true,
+      }),
+      "error",
+    );
+  } finally {
+    setLocationLoading(false);
   }
 }
 
@@ -774,6 +958,7 @@ downloadCsvBtnEl.addEventListener("click", () => {
 });
 
 mapsQrBtnEl.addEventListener("click", createMapsQr);
+useCurrentLocationBtnEl?.addEventListener("click", handleUseCurrentLocation);
 mapsQrOpenBtnEl.addEventListener("click", () => {
   if (!mapsQrState.link) return;
   window.open(mapsQrState.link, "_blank", "noopener");

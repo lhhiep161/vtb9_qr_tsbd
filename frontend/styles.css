@@ -385,6 +385,55 @@ body {
   background: rgba(0, 89, 147, 0.06);
 }
 
+.location-quick-box {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 157, 138, 0.2);
+  background: linear-gradient(130deg, rgba(15, 157, 138, 0.08), rgba(24, 182, 199, 0.06));
+}
+
+.location-quick-title {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #155e75;
+}
+
+.location-btn {
+  width: 100%;
+  border: 1px solid rgba(15, 157, 138, 0.28);
+  border-radius: 11px;
+  background: #fff;
+  color: #0f766e;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.location-btn:hover {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 6px 14px rgba(15, 157, 138, 0.16);
+}
+
+.location-btn:active {
+  transform: translateY(1px);
+}
+
+.location-btn:disabled {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.location-privacy-note {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .field-input {
   width: 100%;
   border: 1px solid #c9d8e6;
