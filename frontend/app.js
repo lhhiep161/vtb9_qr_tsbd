@@ -3,6 +3,11 @@
   if (typeof explicitBase === "string" && explicitBase.trim() !== "") return explicitBase.trim().replace(/\/+$/, "");
 
   const { protocol, hostname, port } = window.location;
+  const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.() || window.Capacitor);
+
+  // On native WebView (Capacitor), never fall back to localhost:8000.
+  // Mobile builds should inject a production API URL via config.js.
+  if (isCapacitorNative) return "";
 
   // If frontend is served on a non-8000 port (e.g. :5500), target backend on :8000
   // using the same host so both desktop LAN and mobile LAN work without manual config.

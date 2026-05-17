@@ -1,0 +1,6 @@
+{
+  "appId": "com.hoanghiep.geoqrstudio",
+  "appName": "GeoQR Studio",
+  "webDir": "dist/web",
+  "bundledWebRuntime": false
+}

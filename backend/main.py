@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import List, Literal, Optional
 
@@ -43,9 +44,26 @@ app = FastAPI(
 )
 config_loader = VN2000ConfigLoader(CONFIG_PATH)
 logger = logging.getLogger(__name__)
+
+
+def _build_allowed_origins() -> List[str]:
+    raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+    if raw:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    return [
+        "http://localhost",
+        "http://localhost:5500",
+        "http://127.0.0.1",
+        "http://127.0.0.1:5500",
+        "https://localhost",
+        "capacitor://localhost",
+        "ionic://localhost",
+    ]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_build_allowed_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

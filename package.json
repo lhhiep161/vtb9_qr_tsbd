@@ -1,0 +1,33 @@
+{
+  "name": "geoqr-studio",
+  "version": "1.0.0",
+  "description": "GeoQR Studio - convert VN2000 coordinates, OCR coordinates, and generate Google Maps QR.",
+  "main": "index.js",
+  "scripts": {
+    "build:web": "python scripts/build_web.py",
+    "build:web:mobile": "python scripts/build_web.py --require-api-base-url",
+    "cap:sync": "npx cap sync",
+    "cap:sync:android": "npx cap sync android",
+    "cap:sync:ios": "npx cap sync ios",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lhhiep161/geoqr_studio.git"
+  },
+  "keywords": [],
+  "author": "Hoang Hiep",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lhhiep161/geoqr_studio/issues"
+  },
+  "homepage": "https://github.com/lhhiep161/geoqr_studio#readme",
+  "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/ios": "^8.3.4"
+  }
+}

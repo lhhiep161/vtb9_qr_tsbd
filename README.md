@@ -97,3 +97,45 @@ Docker image installs OCR system packages:
 - Runtime conversion logic reads `config/vn2000_local_crs.csv`.
 - Reference Excel files under `data/reference_excel` are only for extraction/testing.
 - Google Maps integration is URL-based only; no Google Maps API in MVP.
+
+## Capacitor (Android/iOS wrapper)
+
+This project keeps the same frontend/backend logic and adds Capacitor for mobile packaging.
+
+### 1) Build web assets for Capacitor
+
+```bash
+npm run build:web
+```
+
+Output directory:
+
+```text
+dist/web
+```
+
+Mobile build (requires absolute backend URL, avoids localhost fallback):
+
+```bash
+set GEOQR_API_BASE_URL=https://your-backend-domain
+npm run build:web:mobile
+```
+
+### 2) Sync Capacitor platforms
+
+```bash
+npx cap sync android
+npx cap sync ios
+```
+
+### 3) Open native projects
+
+```bash
+npx cap open android
+npx cap open ios
+```
+
+Notes:
+- Android build/open requires Android Studio + Android SDK.
+- iOS build/open requires macOS + Xcode.
+- Backend CORS can be configured using `CORS_ALLOW_ORIGINS` (comma-separated).
