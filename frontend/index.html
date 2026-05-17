@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
@@ -10,181 +10,175 @@
     />
     <meta name="author" content="Hoàng Hiệp" />
     <link rel="icon" type="image/png" href="../assets/brand/logo.png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260517-tools4" />
   </head>
   <body>
-    <main class="app">
-      <header class="brand-header">
-        <img id="brandLogo" src="../assets/brand/logo.png" alt="GeoQR Studio logo" />
-        <div id="brandFallback" class="brand-fallback">GeoQR Studio</div>
-        <p class="brand-subtitle">Công cụ chuyển đổi tọa độ, OCR tọa độ, định vị bản đồ và tạo QR vị trí</p>
+    <main class="app app-shell">
+      <header class="app-hero app-header brand-header">
+        <div class="app-hero-inner">
+          <div class="app-hero-logo-wrap">
+            <img id="brandLogo" class="app-hero-logo app-logo" src="../assets/brand/logo.png" alt="GeoQR Studio logo" />
+            <div id="brandFallback" class="brand-fallback app-hero-fallback">GQ</div>
+          </div>
+          <div class="app-hero-content">
+            <div class="app-hero-title-row">
+              <h1 class="app-hero-title app-title">GeoQR Studio</h1>
+              <span class="app-hero-author app-author">by Hoàng Hiệp</span>
+            </div>
+            <p class="app-hero-tagline app-tagline">Từ tọa độ đến bản đồ trong vài giây</p>
+            <div class="app-hero-chips app-hero-features" aria-label="Tính năng chính">
+              <span class="app-hero-chip app-feature-chip">OCR tọa độ</span>
+              <span class="app-hero-chip app-feature-chip">Chuyển WGS84</span>
+              <span class="app-hero-chip app-feature-chip">Tạo QR vị trí</span>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <section class="card">
-        <h1 class="section-title">Chuyển đổi tọa độ</h1>
-        <p class="section-helper">Nhập thông tin tọa độ theo GCN để chuyển đổi sang WGS84 và mở nhanh trên Google Maps.</p>
+      <section class="feature-grid" aria-label="Chọn chức năng">
+        <button class="feature-card feature-card-active" type="button" data-feature="convert">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 4h2v16H5zM17 4h2v16h-2zM8 8l4-3 4 3-4 3-4-3zm0 8l4-3 4 3-4 3-4-3z"/></svg>
+          </span>
+          <strong>Chuyển đổi tọa độ</strong>
+          <small>Nhập thủ công, chuyển WGS84 và mở nhanh Google Maps.</small>
+        </button>
+        <button class="feature-card" type="button" data-feature="ocr">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM7 8h4v4H7zm6 0h4v2h-4zm0 4h4v2h-4zM7 14h4v2H7z"/></svg>
+          </span>
+          <strong>Đọc tọa độ từ hình</strong>
+          <small>Tải ảnh, chọn 1 điểm và tạo ngay Google Maps/QR.</small>
+        </button>
+        <button class="feature-card" type="button" data-feature="qr">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h2v2h-2zm4 0h4v2h-4zm-2 4h2v2h-2zm4 0h2v4h-2zm-6 2h4v2h-4z"/></svg>
+          </span>
+          <strong>Tạo QR vị trí</strong>
+          <small>Hỗ trợ link Maps, lat,lng và Plus Code.</small>
+        </button>
+      </section>
 
-        <label class="field-label" for="province">Tỉnh/Thành phố</label>
-        <select id="province" class="field-input" required>
-          <option value="">Đang tải danh sách tỉnh/thành...</option>
-        </select>
-
-        <label class="field-label" for="value1">Giá trị tọa độ 1</label>
-        <input id="value1" class="field-input" type="number" step="any" placeholder="Ví dụ: 568262.924" required />
-
-        <label class="field-label" for="value2">Giá trị tọa độ 2</label>
-        <input id="value2" class="field-input" type="number" step="any" placeholder="Ví dụ: 1255172.51" required />
-
-        <label class="field-label" for="inputMode">Chế độ nhập</label>
-        <select id="inputMode" class="field-input">
-          <option value="auto">Tự động (auto)</option>
-          <option value="easting_northing">Giá trị 1 = Easting, Giá trị 2 = Northing</option>
-          <option value="northing_easting">Giá trị 1 = Northing, Giá trị 2 = Easting</option>
-        </select>
-
-        <section class="hidden">
-          <button id="gpsBtn" class="gps-btn" type="button">Lấy vị trí hiện tại</button>
-          <p id="gpsStatusText" class="gps-status-text">Chưa lấy vị trí GPS.</p>
+      <section id="panel-convert" class="tool-panel active" data-panel="convert">
+        <section class="card">
+          <h2 class="section-title">Chuyển đổi tọa độ</h2>
+          <p class="section-helper">Nhập tọa độ thủ công, chuyển sang WGS84 và mở nhanh trên Google Maps.</p>
+          <label class="field-label" for="province">Tỉnh/Thành phố</label>
+          <select id="province" class="field-input" required>
+            <option value="">Đang tải danh sách tỉnh/thành...</option>
+          </select>
+          <label class="field-label" for="value1">Giá trị tọa độ 1</label>
+          <input id="value1" class="field-input" type="number" step="any" placeholder="Ví dụ: 568262.924" required />
+          <label class="field-label" for="value2">Giá trị tọa độ 2</label>
+          <input id="value2" class="field-input" type="number" step="any" placeholder="Ví dụ: 1255172.51" required />
+          <label class="field-label" for="inputMode">Chế độ nhập</label>
+          <select id="inputMode" class="field-input">
+            <option value="auto">Tự động (auto)</option>
+            <option value="easting_northing">Giá trị 1 = Easting, Giá trị 2 = Northing</option>
+            <option value="northing_easting">Giá trị 1 = Northing, Giá trị 2 = Easting</option>
+          </select>
+          <button id="convertBtn" class="convert-btn" type="button">Chuyển đổi</button>
+          <p id="statusText" class="status-text"></p>
         </section>
-
-        <button id="convertBtn" class="convert-btn" type="button">Chuyển đổi</button>
-        <p id="statusText" class="status-text"></p>
-      </section>
-
-      <section class="card">
-        <h2 class="section-title">Đọc tọa độ từ ảnh GCN</h2>
-        <p class="manual-note">Nên chụp/crop sát vùng bảng tọa độ, không chụp toàn bộ GCN nếu không cần.</p>
-
-        <div class="upload-actions">
-          <button id="captureBtn" class="secondary-btn" type="button">Chụp ảnh vùng tọa độ</button>
-          <button id="pickFileBtn" class="secondary-btn" type="button">Chọn ảnh có sẵn</button>
-          <input id="ocrImageCaptureInput" class="hidden" type="file" accept="image/*" />
-          <input id="ocrImageInput" class="hidden" type="file" accept="image/*" />
-        </div>
-        <p id="ocrFileNameText" class="manual-status-text">Chưa chọn ảnh.</p>
-
-        <div class="ocr-actions">
-          <button id="ocrFastBtn" class="convert-btn" type="button">Đọc nhanh tọa độ</button>
-          <button id="ocrEnhancedBtn" class="secondary-btn" type="button">Đọc kỹ tọa độ</button>
-        </div>
-        <p class="manual-note">Đọc nhanh: Phù hợp ảnh rõ, crop sát vùng bảng tọa độ.</p>
-        <p class="manual-note">Đọc kỹ: Dùng khi ảnh mờ/nhiễu/vân nền; có thể mất nhiều thời gian hơn.</p>
-        <p id="ocrEnhancedNote" class="manual-note hidden">Chế độ đọc kỹ có thể mất nhiều thời gian hơn, đặc biệt trên bản web thử nghiệm.</p>
-
-        <p id="ocrStatusText" class="manual-status-text"></p>
-        <ul id="ocrWarnings" class="ocr-warnings"></ul>
-
-        <div id="ocrCandidatesTableWrap" class="ocr-table-wrap hidden">
-          <table class="ocr-table">
-            <thead>
-              <tr>
-                <th>Chọn</th>
-                <th>Điểm</th>
-                <th>Giá trị 1</th>
-                <th>Giá trị 2</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="ocrCandidatesTableBody"></tbody>
-          </table>
-
-          <div class="ocr-actions">
-            <button id="previewSelectedBtn" class="secondary-btn" type="button">Xem trước các cặp đã chọn</button>
-            <button id="convertSelectedBtn" class="secondary-btn" type="button">Chuyển đổi các điểm đã chọn</button>
-          </div>
-          <ul id="ocrBatchPreview" class="ocr-batch-preview"></ul>
-        </div>
-
-        <details id="ocrMetaDetails" class="ocr-raw hidden">
-          <summary>Xem chi tiết OCR</summary>
-          <ul id="ocrMetaList"></ul>
-        </details>
-
-        <details id="ocrRawDetails" class="ocr-raw hidden">
-          <summary>Xem nội dung OCR thô</summary>
-          <pre id="ocrRawText"></pre>
-        </details>
-      </section>
-
-      <section id="multiResultCard" class="card result-card hidden">
-        <h2 class="section-title">Kết quả chuyển đổi nhiều điểm</h2>
-        <div class="multi-result-actions">
-          <button id="copyAllLatLngBtn" class="secondary-btn" type="button">Sao chép tất cả Lat/Long</button>
-          <button id="downloadCsvBtn" class="secondary-btn" type="button">Tải kết quả CSV</button>
-        </div>
-        <p id="multiResultStatusText" class="status-text"></p>
-        <div class="multi-table-wrap">
-          <table class="multi-table">
-            <thead>
-              <tr>
-                <th>Điểm</th>
-                <th>Giá trị 1</th>
-                <th>Giá trị 2</th>
-                <th>Latitude (WGS84)</th>
-                <th>Longitude (WGS84)</th>
-                <th>Google Maps</th>
-              </tr>
-            </thead>
-            <tbody id="multiResultTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="mapsQrCard" class="card">
-        <h2 class="section-title">Tạo QR từ Google Maps</h2>
-        <p class="section-helper">Dán link Google Maps hoặc tọa độ Lat/Long có sẵn để tạo mã QR vị trí.</p>
-        <p class="manual-note">Có thể dán Lat/Long, link Google Maps, link rút gọn hoặc Plus Code.</p>
-        <label class="field-label" for="mapsQrInput">Link Google Maps hoặc tọa độ Lat/Long</label>
-        <textarea
-          id="mapsQrInput"
-          class="field-input"
-          rows="4"
-          placeholder="10.7769,106.7009&#10;https://www.google.com/maps?q=10.7769,106.7009&#10;https://www.google.com/maps/@10.7769,106.7009,17z&#10;https://maps.app.goo.gl/..."
-        ></textarea>
-        <button id="mapsQrBtn" class="convert-btn" type="button">Tạo QR Google Maps</button>
-        <p id="mapsQrStatusText" class="status-text"></p>
-
-        <section id="mapsQrResultCard" class="result-card hidden">
-          <div class="result-row"><span>Nguồn tọa độ</span><strong id="mapsQrSource">-</strong></div>
-          <div class="result-row"><span>Latitude</span><strong id="mapsQrLat">-</strong></div>
-          <div class="result-row"><span>Longitude</span><strong id="mapsQrLng">-</strong></div>
-          <div class="result-row"><span>Google Maps</span><a id="mapsQrLink" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+        <section id="resultCard" class="card result-card hidden">
+          <h3 class="section-title">Kết quả</h3>
+          <div class="result-row"><span>Latitude (WGS84)</span><strong id="resultLat">-</strong></div>
+          <div class="result-row"><span>Longitude (WGS84)</span><strong id="resultLng">-</strong></div>
           <div class="result-actions">
-            <button id="mapsQrOpenBtn" class="secondary-btn" type="button">Mở Google Maps</button>
-            <button id="mapsQrCopyBtn" class="secondary-btn" type="button">Sao chép link</button>
-            <button id="mapsQrDownloadBtn" class="secondary-btn" type="button">Tải ảnh QR</button>
+            <button id="copyLatLngBtn" class="secondary-btn" type="button">Sao chép Lat/Long</button>
+            <button id="copyMapsBtn" class="secondary-btn" type="button">Sao chép link Google Maps</button>
+            <button id="openMapsBtn" class="secondary-btn" type="button">Mở Google Maps</button>
           </div>
-          <div id="mapsQrImageBox" class="qr-box hidden">
-            <img id="mapsQrImage" alt="Google Maps QR code" />
+          <div class="result-row"><span>Thứ tự tọa độ đã dùng</span><strong id="resultOrder">-</strong></div>
+          <div class="result-row"><span>Google Maps</span><a id="resultMaps" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+          <div class="result-row warnings"><span>Cảnh báo</span><ul id="resultWarnings"></ul></div>
+          <div id="qrBox" class="qr-box hidden">
+            <p class="qr-title">Mã QR Google Maps</p>
+            <img id="resultQr" alt="Google Maps QR code" />
+            <button id="downloadQrBtn" class="secondary-btn qr-download-btn" type="button">Tải ảnh QR</button>
           </div>
-          <ul id="mapsQrWarnings" class="ocr-warnings"></ul>
-          <details id="mapsQrResolvedDetails" class="ocr-raw hidden">
-            <summary>Xem link đã xử lý</summary>
-            <pre id="mapsQrResolvedText"></pre>
-          </details>
         </section>
       </section>
 
-      <section id="resultCard" class="card result-card hidden">
-        <h2 class="section-title">Kết quả</h2>
-        <div class="result-row"><span>Latitude (WGS84)</span><strong id="resultLat">-</strong></div>
-        <div class="result-row"><span>Longitude (WGS84)</span><strong id="resultLng">-</strong></div>
-        <div class="result-actions">
-          <button id="copyLatLngBtn" class="secondary-btn" type="button">Sao chép Lat/Long</button>
-          <button id="copyMapsBtn" class="secondary-btn" type="button">Sao chép link Google Maps</button>
-          <button id="openMapsBtn" class="secondary-btn" type="button">Mở Google Maps</button>
-        </div>
-        <div class="result-row"><span>Thứ tự tọa độ đã dùng</span><strong id="resultOrder">-</strong></div>
-        <div class="result-row"><span>Google Maps</span><a id="resultMaps" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
-        <div class="result-row warnings">
-          <span>Cảnh báo</span>
-          <ul id="resultWarnings"></ul>
-        </div>
-        <div id="qrBox" class="qr-box hidden">
-          <p class="qr-title">Mã QR Google Maps</p>
-          <img id="resultQr" alt="Google Maps QR code" />
-          <button id="downloadQrBtn" class="secondary-btn qr-download-btn" type="button">Tải ảnh QR</button>
-        </div>
+      <section id="panel-ocr" class="tool-panel" data-panel="ocr">
+        <section class="card">
+          <h2 class="section-title">Đọc tọa độ từ hình</h2>
+          <p class="section-helper">Tải ảnh, nhận diện tọa độ, chọn một điểm và tạo ngay Google Maps/QR.</p>
+          <label class="field-label" for="ocrProvince">Tỉnh/Thành phố dùng để chuyển đổi</label>
+          <select id="ocrProvince" class="field-input" required>
+            <option value="">Đang tải danh sách tỉnh/thành...</option>
+          </select>
+          <div class="upload-actions">
+            <button id="captureBtn" class="secondary-btn" type="button">Chụp ảnh vùng tọa độ</button>
+            <button id="pickFileBtn" class="secondary-btn" type="button">Chọn ảnh có sẵn</button>
+            <input id="ocrImageCaptureInput" class="hidden" type="file" accept="image/*" />
+            <input id="ocrImageInput" class="hidden" type="file" accept="image/*" />
+          </div>
+          <p id="ocrFileNameText" class="manual-status-text">Chưa chọn ảnh.</p>
+          <div class="ocr-actions">
+            <button id="ocrFastBtn" class="convert-btn" type="button">Đọc nhanh tọa độ</button>
+            <button id="ocrEnhancedBtn" class="secondary-btn" type="button">Đọc kỹ tọa độ</button>
+          </div>
+          <p id="ocrEnhancedNote" class="manual-note hidden">Chế độ đọc kỹ có thể mất nhiều thời gian hơn.</p>
+          <p id="ocrStatusText" class="manual-status-text"></p>
+          <ul id="ocrWarnings" class="ocr-warnings"></ul>
+          <div id="ocrCandidatesTableWrap" class="ocr-table-wrap hidden">
+            <table class="ocr-table">
+              <thead>
+                <tr><th>Chọn</th><th>Điểm</th><th>Giá trị 1</th><th>Giá trị 2</th><th>Thao tác</th></tr>
+              </thead>
+              <tbody id="ocrCandidatesTableBody"></tbody>
+            </table>
+            <div class="ocr-actions">
+              <button id="convertSelectedBtn" class="convert-btn" type="button">Tạo Google Maps và QR cho tọa độ đã chọn</button>
+              <button id="previewSelectedBtn" class="secondary-btn" type="button">Đưa sang form nhập tay</button>
+            </div>
+            <ul id="ocrBatchPreview" class="ocr-batch-preview"></ul>
+          </div>
+          <details id="ocrMetaDetails" class="ocr-raw hidden"><summary>Xem chi tiết OCR</summary><ul id="ocrMetaList"></ul></details>
+          <details id="ocrRawDetails" class="ocr-raw hidden"><summary>Xem nội dung OCR thô</summary><pre id="ocrRawText"></pre></details>
+        </section>
+
+        <section id="multiResultCard" class="card result-card hidden">
+          <h3 class="section-title">Kết quả chuyển đổi từ OCR</h3>
+          <p id="multiResultStatusText" class="status-text"></p>
+          <div class="result-row"><span>Tọa độ gốc</span><strong id="ocrResultRaw">-</strong></div>
+          <div class="result-row"><span>Tỉnh/Thành phố</span><strong id="ocrResultProvince">-</strong></div>
+          <div class="result-row"><span>Latitude (WGS84)</span><strong id="ocrResultLat">-</strong></div>
+          <div class="result-row"><span>Longitude (WGS84)</span><strong id="ocrResultLng">-</strong></div>
+          <div class="result-row"><span>Google Maps</span><a id="ocrResultMaps" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+          <div class="result-actions">
+            <button id="copyAllLatLngBtn" class="secondary-btn" type="button">Sao chép Lat/Long</button>
+            <button id="downloadCsvBtn" class="secondary-btn" type="button">Tải ảnh QR</button>
+          </div>
+          <div id="ocrQrBox" class="qr-box hidden"><img id="ocrResultQr" alt="Google Maps QR from OCR" /></div>
+        </section>
+      </section>
+
+      <section id="panel-qr" class="tool-panel" data-panel="qr">
+        <section id="mapsQrCard" class="card">
+          <h2 class="section-title">Tạo QR vị trí</h2>
+          <p class="section-helper">Dán link Google Maps, tọa độ lat,lng hoặc Plus Code để tạo QR chia sẻ vị trí.</p>
+          <label class="field-label" for="mapsQrInput">Link Google Maps / Lat,Lng / Plus Code</label>
+          <textarea id="mapsQrInput" class="field-input" rows="4" placeholder="10.7769,106.7009&#10;https://www.google.com/maps?q=10.7769,106.7009&#10;849VQJQ5+XX"></textarea>
+          <button id="mapsQrBtn" class="convert-btn" type="button">Tạo QR Google Maps</button>
+          <p id="mapsQrStatusText" class="status-text"></p>
+
+          <section id="mapsQrResultCard" class="result-card hidden">
+            <div class="result-row"><span>Nguồn tọa độ</span><strong id="mapsQrSource">-</strong></div>
+            <div class="result-row"><span>Latitude</span><strong id="mapsQrLat">-</strong></div>
+            <div class="result-row"><span>Longitude</span><strong id="mapsQrLng">-</strong></div>
+            <div class="result-row"><span>Google Maps</span><a id="mapsQrLink" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+            <div class="result-actions">
+              <button id="mapsQrOpenBtn" class="secondary-btn" type="button">Mở Google Maps</button>
+              <button id="mapsQrCopyBtn" class="secondary-btn" type="button">Sao chép link</button>
+              <button id="mapsQrDownloadBtn" class="secondary-btn" type="button">Tải ảnh QR</button>
+            </div>
+            <div id="mapsQrImageBox" class="qr-box hidden"><img id="mapsQrImage" alt="Google Maps QR code" /></div>
+            <ul id="mapsQrWarnings" class="ocr-warnings"></ul>
+            <details id="mapsQrResolvedDetails" class="ocr-raw hidden"><summary>Xem link đã xử lý</summary><pre id="mapsQrResolvedText"></pre></details>
+          </section>
+        </section>
       </section>
     </main>
 

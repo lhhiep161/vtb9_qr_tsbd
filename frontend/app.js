@@ -1,7 +1,18 @@
-function resolveApiBaseUrl() {
+﻿function resolveApiBaseUrl() {
   const explicitBase = window.APP_CONFIG?.API_BASE_URL;
   if (typeof explicitBase === "string" && explicitBase.trim() !== "") return explicitBase.trim().replace(/\/+$/, "");
-  return ["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://localhost:8000" : "";
+
+  const { protocol, hostname, port } = window.location;
+
+  // If frontend is served on a non-8000 port (e.g. :5500), target backend on :8000
+  // using the same host so both desktop LAN and mobile LAN work without manual config.
+  if (port && port !== "8000") return `${protocol}//${hostname}:8000`;
+
+  // Localhost dev convenience when port is omitted/rewritten.
+  if (["localhost", "127.0.0.1"].includes(hostname)) return "http://localhost:8000";
+
+  // Same-origin fallback for production/reverse proxy where /api is served together.
+  return "";
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -20,9 +31,12 @@ const convertBtnEl = document.getElementById("convertBtn");
 const statusTextEl = document.getElementById("statusText");
 const resultCardEl = document.getElementById("resultCard");
 const qrBoxEl = document.getElementById("qrBox");
+const featureCardEls = Array.from(document.querySelectorAll(".feature-card"));
+const toolPanelEls = Array.from(document.querySelectorAll(".tool-panel"));
 
 const captureBtnEl = document.getElementById("captureBtn");
 const pickFileBtnEl = document.getElementById("pickFileBtn");
+const ocrProvinceEl = document.getElementById("ocrProvince");
 const ocrImageInputEl = document.getElementById("ocrImageInput");
 const ocrImageCaptureInputEl = document.getElementById("ocrImageCaptureInput");
 const ocrFileNameTextEl = document.getElementById("ocrFileNameText");
@@ -42,8 +56,14 @@ const ocrRawDetailsEl = document.getElementById("ocrRawDetails");
 const ocrRawTextEl = document.getElementById("ocrRawText");
 
 const multiResultCardEl = document.getElementById("multiResultCard");
-const multiResultTableBodyEl = document.getElementById("multiResultTableBody");
 const multiResultStatusTextEl = document.getElementById("multiResultStatusText");
+const ocrResultRawEl = document.getElementById("ocrResultRaw");
+const ocrResultProvinceEl = document.getElementById("ocrResultProvince");
+const ocrResultLatEl = document.getElementById("ocrResultLat");
+const ocrResultLngEl = document.getElementById("ocrResultLng");
+const ocrResultMapsEl = document.getElementById("ocrResultMaps");
+const ocrResultQrEl = document.getElementById("ocrResultQr");
+const ocrQrBoxEl = document.getElementById("ocrQrBox");
 const copyAllLatLngBtnEl = document.getElementById("copyAllLatLngBtn");
 const downloadCsvBtnEl = document.getElementById("downloadCsvBtn");
 
@@ -78,7 +98,7 @@ const openMapsBtnEl = document.getElementById("openMapsBtn");
 const brandLogoEl = document.getElementById("brandLogo");
 const brandFallbackEl = document.getElementById("brandFallback");
 
-const state = { lastLatitude: null, lastLongitude: null, lastMapsUrl: "", multiRows: [] };
+const state = { lastLatitude: null, lastLongitude: null, lastMapsUrl: "", activeFeature: "convert", ocrSingle: null };
 const mapsQrState = { link: "", qrDataUrl: "" };
 
 function toVietnameseCoordinateSource(source) {
@@ -145,7 +165,7 @@ function setOcrLoading(isLoading, mode = "fast") {
 
 function setMultiConvertLoading(isLoading) {
   convertSelectedBtnEl.disabled = isLoading;
-  convertSelectedBtnEl.textContent = isLoading ? "Đang chuyển đổi..." : "Chuyển đổi các điểm đã chọn";
+  convertSelectedBtnEl.textContent = isLoading ? "Đang chuyển đổi..." : "Tạo Google Maps và QR cho tọa độ đã chọn";
 }
 
 function setOcrStatus(message, type = "default") {
@@ -197,30 +217,29 @@ function setSelectedFile(file) {
   ocrFileNameTextEl.textContent = file ? `Ảnh đã chọn: ${file.name}` : "Chưa chọn ảnh.";
 }
 
+function setActiveFeature(feature) {
+  state.activeFeature = feature;
+  featureCardEls.forEach((card) => card.classList.toggle("feature-card-active", card.dataset.feature === feature));
+  toolPanelEls.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === feature));
+}
+
 function readRowValue(input) {
   const value = Number(input.value);
   return Number.isFinite(value) ? value : NaN;
 }
 
-function getSelectedOcrCandidates() {
-  const checked = Array.from(document.querySelectorAll(".ocr-select:checked"));
-  const selected = [];
-  checked.forEach((checkbox) => {
-    const row = checkbox.closest("tr");
-    if (!row) return;
-    const v1Input = row.querySelector(".ocr-value1-input");
-    const v2Input = row.querySelector(".ocr-value2-input");
-    const label = checkbox.dataset.label || "-";
-    const value1 = readRowValue(v1Input);
-    const value2 = readRowValue(v2Input);
-    if (Number.isFinite(value1) && Number.isFinite(value2)) selected.push({ point_label: label, value1, value2 });
-  });
-  const uniq = new Map();
-  selected.forEach((item) => {
-    const key = `${item.point_label}|${item.value1}|${item.value2}`;
-    if (!uniq.has(key)) uniq.set(key, item);
-  });
-  return Array.from(uniq.values());
+function getSelectedOcrCandidate() {
+  const picked = document.querySelector(".ocr-select:checked");
+  if (!picked) return null;
+  const row = picked.closest("tr");
+  if (!row) return null;
+  const v1Input = row.querySelector(".ocr-value1-input");
+  const v2Input = row.querySelector(".ocr-value2-input");
+  const label = picked.dataset.label || "-";
+  const value1 = readRowValue(v1Input);
+  const value2 = readRowValue(v2Input);
+  if (!Number.isFinite(value1) || !Number.isFinite(value2)) return null;
+  return { point_label: label, value1, value2 };
 }
 
 async function copyText(text, successMessage) {
@@ -277,7 +296,7 @@ function renderOcrCandidates(candidates) {
   ocrCandidatesTableBodyEl.innerHTML = "";
   ocrBatchPreviewEl.innerHTML = "";
   multiResultCardEl.classList.add("hidden");
-  state.multiRows = [];
+  state.ocrSingle = null;
   if (!candidates || candidates.length === 0) {
     ocrCandidatesTableWrapEl.classList.add("hidden");
     return;
@@ -291,7 +310,8 @@ function renderOcrCandidates(candidates) {
     const tr = document.createElement("tr");
     const tdSelect = document.createElement("td");
     const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
+    checkbox.type = "radio";
+    checkbox.name = "ocr-candidate";
     checkbox.className = "ocr-select";
     checkbox.dataset.label = item.point_label || "";
     tdSelect.appendChild(checkbox);
@@ -336,70 +356,47 @@ function renderOcrCandidates(candidates) {
 
 function previewSelectedCandidates() {
   ocrBatchPreviewEl.innerHTML = "";
-  const list = getSelectedOcrCandidates();
-  if (list.length === 0) {
+  const selected = getSelectedOcrCandidate();
+  if (!selected) {
     const li = document.createElement("li");
     li.textContent = "Chưa chọn cặp nào để xem trước.";
     ocrBatchPreviewEl.appendChild(li);
     return;
   }
-  list.forEach((item) => {
-    const li = document.createElement("li");
-    li.textContent = `Điểm ${item.point_label}: ${item.value1} | ${item.value2}`;
-    ocrBatchPreviewEl.appendChild(li);
-  });
-}
-
-function renderMultiResultTable(rows) {
-  multiResultTableBodyEl.innerHTML = "";
-  const warningLines = [];
-  rows.forEach((row) => {
-    const tr = document.createElement("tr");
-    const cells = [document.createElement("td"), document.createElement("td"), document.createElement("td"), document.createElement("td"), document.createElement("td"), document.createElement("td")];
-    cells[0].textContent = row.point_label || "-";
-    cells[1].textContent = String(row.value1);
-    cells[2].textContent = String(row.value2);
-    if (row.ok) {
-      cells[3].textContent = Number(row.latitude).toFixed(12);
-      cells[4].textContent = Number(row.longitude).toFixed(12);
-      const link = document.createElement("a");
-      link.href = row.google_maps_url;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = "Mở";
-      cells[5].appendChild(link);
-    } else {
-      cells[3].textContent = "-";
-      cells[4].textContent = "-";
-      cells[5].textContent = "Lỗi";
-      tr.classList.add("multi-row-error");
-      warningLines.push(`Điểm ${row.point_label}: ${row.error_message}`);
-    }
-    tr.append(...cells);
-    multiResultTableBodyEl.appendChild(tr);
-  });
-  multiResultStatusTextEl.textContent = warningLines.length > 0 ? `Có ${warningLines.length} điểm chuyển đổi thất bại. ${warningLines.join(" | ")}` : "Đã chuyển đổi thành công các điểm đã chọn.";
+  const li = document.createElement("li");
+  li.textContent = `Điểm ${selected.point_label}: ${selected.value1} | ${selected.value2}`;
+  ocrBatchPreviewEl.appendChild(li);
 }
 
 async function loadProvinces() {
   provinceEl.innerHTML = '<option value="">Đang tải danh sách tỉnh/thành...</option>';
+  ocrProvinceEl.innerHTML = '<option value="">Đang tải danh sách tỉnh/thành...</option>';
   try {
     const resp = await fetch(API_URLS.provinces);
     if (!resp.ok) throw new Error();
     const data = await resp.json();
     provinceEl.innerHTML = '<option value="">Chọn tỉnh/thành phố</option>';
+    ocrProvinceEl.innerHTML = '<option value="">Chọn tỉnh/thành phố</option>';
     (data.provinces || []).forEach((province) => {
-      const opt = document.createElement("option");
-      opt.value = province;
-      opt.textContent = province;
-      provinceEl.appendChild(opt);
+      const opt1 = document.createElement("option");
+      opt1.value = province;
+      opt1.textContent = province;
+      provinceEl.appendChild(opt1);
+      const opt2 = document.createElement("option");
+      opt2.value = province;
+      opt2.textContent = province;
+      ocrProvinceEl.appendChild(opt2);
     });
     const variants = ["TP.Hồ Chí Minh", "TP Hồ Chí Minh", "Thành phố Hồ Chí Minh", "TP.HCM"];
     const options = Array.from(provinceEl.options).map((o) => o.value.trim());
     const found = variants.find((v) => options.includes(v));
-    if (found) provinceEl.value = found;
+    if (found) {
+      provinceEl.value = found;
+      ocrProvinceEl.value = found;
+    }
   } catch {
     provinceEl.innerHTML = '<option value="">Không tải được danh sách tỉnh/thành</option>';
+    ocrProvinceEl.innerHTML = '<option value="">Không tải được danh sách tỉnh/thành</option>';
     statusTextEl.textContent = `Không kết nối được backend (${API_BASE_URL || "same-origin"}).`;
   }
 }
@@ -573,35 +570,57 @@ async function createMapsQr() {
 }
 
 async function convertSelectedCandidates() {
-  const province = provinceEl.value.trim();
-  if (!province) return void (statusTextEl.textContent = "Vui lòng chọn tỉnh/thành phố trước khi chuyển đổi nhiều điểm.");
-  const selected = getSelectedOcrCandidates();
-  if (selected.length === 0) {
-    multiResultStatusTextEl.textContent = "Vui lòng chọn ít nhất 1 điểm OCR hợp lệ.";
+  const province = (ocrProvinceEl.value || "").trim();
+  if (!province) {
+    multiResultStatusTextEl.textContent = "Vui lòng chọn Tỉnh/Thành phố để chuyển đổi chính xác.";
+    multiResultCardEl.classList.remove("hidden");
+    return;
+  }
+  const selected = getSelectedOcrCandidate();
+  if (!selected) {
+    multiResultStatusTextEl.textContent = "Vui lòng chọn một tọa độ trước khi chuyển đổi.";
     multiResultCardEl.classList.remove("hidden");
     return;
   }
   setMultiConvertLoading(true);
   multiResultStatusTextEl.textContent = "";
   try {
-    const rows = await Promise.all(selected.map(async (item) => {
-      try {
-        const resp = await fetch(API_URLS.convert, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ province, value1: item.value1, value2: item.value2, input_mode: "auto", current_lat: null, current_lng: null }),
-        });
-        const data = await resp.json();
-        if (!resp.ok) return { ...item, ok: false, error_message: data?.detail || "Chuyển đổi thất bại." };
-        return { ...item, ok: true, latitude: Number(data.latitude), longitude: Number(data.longitude), google_maps_url: data.google_maps_url || `https://www.google.com/maps?q=${data.latitude},${data.longitude}` };
-      } catch (err) {
-        return { ...item, ok: false, error_message: err.message || "Lỗi kết nối." };
-      }
-    }));
-    state.multiRows = rows;
-    renderMultiResultTable(rows);
+    const resp = await fetch(API_URLS.convert, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ province, value1: selected.value1, value2: selected.value2, input_mode: "auto", current_lat: null, current_lng: null }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data?.detail || "Chuyển đổi thất bại.");
+
+    state.ocrSingle = {
+      point_label: selected.point_label,
+      value1: selected.value1,
+      value2: selected.value2,
+      province,
+      latitude: Number(data.latitude),
+      longitude: Number(data.longitude),
+      google_maps_url: data.google_maps_url || `https://www.google.com/maps?q=${data.latitude},${data.longitude}`,
+      qr_png_base64: data.qr_png_base64 || "",
+    };
+    ocrResultRawEl.textContent = `${selected.point_label}: ${selected.value1} | ${selected.value2}`;
+    ocrResultProvinceEl.textContent = province;
+    ocrResultLatEl.textContent = state.ocrSingle.latitude.toFixed(12);
+    ocrResultLngEl.textContent = state.ocrSingle.longitude.toFixed(12);
+    ocrResultMapsEl.href = state.ocrSingle.google_maps_url;
+    ocrResultMapsEl.textContent = state.ocrSingle.google_maps_url;
+    if (state.ocrSingle.qr_png_base64) {
+      ocrResultQrEl.src = `data:image/png;base64,${state.ocrSingle.qr_png_base64}`;
+      ocrQrBoxEl.classList.remove("hidden");
+    } else {
+      ocrQrBoxEl.classList.add("hidden");
+    }
+    multiResultStatusTextEl.textContent = "Đã tạo Google Maps và QR cho tọa độ đã chọn.";
     multiResultCardEl.classList.remove("hidden");
     multiResultCardEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    multiResultStatusTextEl.textContent = `Lỗi: ${err.message}`;
+    multiResultCardEl.classList.remove("hidden");
   } finally {
     setMultiConvertLoading(false);
   }
@@ -640,16 +659,17 @@ downloadQrBtnEl.addEventListener("click", () => {
   document.body.removeChild(link);
 });
 copyAllLatLngBtnEl.addEventListener("click", async () => {
-  const rows = state.multiRows.filter((r) => r.ok);
-  if (rows.length === 0) return void (multiResultStatusTextEl.textContent = "Chưa có dòng thành công để sao chép.");
-  await copyText(rows.map((r) => `${r.point_label},${r.latitude},${r.longitude}`).join("\n"), "Đã sao chép tất cả Lat/Long.");
+  if (!state.ocrSingle) return void (multiResultStatusTextEl.textContent = "Chưa có kết quả OCR để sao chép.");
+  await copyText(`${state.ocrSingle.latitude},${state.ocrSingle.longitude}`, "Đã sao chép Lat/Long từ OCR.");
 });
 downloadCsvBtnEl.addEventListener("click", () => {
-  const rows = state.multiRows.filter((r) => r.ok);
-  if (rows.length === 0) return void (multiResultStatusTextEl.textContent = "Chưa có dòng thành công để tải CSV.");
-  const header = "point_label,value1,value2,latitude,longitude,google_maps_url";
-  const body = rows.map((r) => `"${String(r.point_label).replaceAll('"', '""')}",${r.value1},${r.value2},${r.latitude},${r.longitude},"${String(r.google_maps_url).replaceAll('"', '""')}"`);
-  downloadTextFile("geoqr-studio-multi-convert.csv", [header, ...body].join("\n"), "text/csv;charset=utf-8;");
+  if (!state.ocrSingle?.qr_png_base64) return void (multiResultStatusTextEl.textContent = "Chưa có ảnh QR để tải.");
+  const link = document.createElement("a");
+  link.href = `data:image/png;base64,${state.ocrSingle.qr_png_base64}`;
+  link.download = "geoqr-studio-ocr-google-maps-qr.png";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 });
 
 mapsQrBtnEl.addEventListener("click", createMapsQr);
@@ -671,4 +691,10 @@ mapsQrDownloadBtnEl.addEventListener("click", () => {
   document.body.removeChild(link);
 });
 
+featureCardEls.forEach((card) => {
+  card.addEventListener("click", () => setActiveFeature(card.dataset.feature));
+});
+
+setActiveFeature(state.activeFeature);
 loadProvinces();
+
