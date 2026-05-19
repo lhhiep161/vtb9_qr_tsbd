@@ -6,8 +6,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from backend.core.coordinate_converter import CoordinateConverter
 from backend.core.distance_calculator import haversine_distance_meters
-from backend.main import app
+from backend.main import app, config_loader
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -74,3 +75,17 @@ def test_convert_endpoint_returns_distance_when_current_gps_provided() -> None:
     data = response.json()
     assert data["distance_meters"] is not None
     assert data["distance_meters"] >= 0
+
+
+def test_reverse_conversion_matches_reference_fixture() -> None:
+    row = _load_first_reference_row()
+    local_crs = config_loader.get_by_province(row["province"])
+    result = CoordinateConverter.convert_wgs84_to_vn2000(
+        latitude=float(row["expected_lat"]),
+        longitude=float(row["expected_lng"]),
+        local_crs=local_crs,
+    )
+
+    assert abs(result.easting - float(row["input_x"])) < 1.0
+    assert abs(result.northing - float(row["input_y"])) < 1.0
+    assert result.warnings == []

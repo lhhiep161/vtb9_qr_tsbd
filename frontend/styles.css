@@ -437,6 +437,10 @@ body {
   line-height: 1.35;
 }
 
+.maps-qr-vn2000-note {
+  margin-top: 6px;
+}
+
 .field-input {
   width: 100%;
   border: 1px solid #c9d8e6;
@@ -688,6 +692,18 @@ body {
   text-decoration: none;
   font-weight: 600;
   word-break: break-all;
+}
+
+.vn2000-result-section {
+  margin: 12px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.result-subtitle {
+  margin: 0 0 6px;
+  color: var(--color-primary);
+  font-size: 0.96rem;
 }
 
 .result-actions {

@@ -17,6 +17,36 @@ def test_google_maps_qr_direct_lat_lng() -> None:
     assert round(data["latitude"], 4) == 10.7769
     assert round(data["longitude"], 4) == 106.7009
     assert data["qr_png_base64"]
+    assert data["vn2000"] is None
+
+
+def test_google_maps_qr_direct_lat_lng_with_province_returns_vn2000() -> None:
+    resp = client.post(
+        "/api/google-maps-qr",
+        json={
+            "input_text": "11.349358065695681,108.87720114429756",
+            "province": "Ninh Thuận",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["vn2000"]["province"] == "Ninh Thuận"
+    assert data["vn2000"]["coordinate_order"] == "easting_northing"
+    assert abs(data["vn2000"]["easting"] - 568262.924) < 1.0
+    assert abs(data["vn2000"]["northing"] - 1255172.51) < 1.0
+
+
+def test_google_maps_qr_invalid_reverse_province_returns_friendly_400() -> None:
+    resp = client.post(
+        "/api/google-maps-qr",
+        json={"input_text": "10.7769,106.7009", "province": "Không Có Tỉnh Này"},
+    )
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["ok"] is False
+    assert "Tỉnh/Thành phố VN2000 không hợp lệ" in data["message"]
+    assert "chọn một tỉnh/thành phố hợp lệ" in data["suggestion"]
 
 
 def test_google_maps_qr_space_separated_lat_lng() -> None:

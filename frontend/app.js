@@ -89,6 +89,7 @@ const copyAllLatLngBtnEl = document.getElementById("copyAllLatLngBtn");
 const downloadCsvBtnEl = document.getElementById("downloadCsvBtn");
 
 const mapsQrInputEl = document.getElementById("mapsQrInput");
+const mapsQrProvinceEl = document.getElementById("mapsQrProvince");
 const useCurrentLocationBtnEl = document.getElementById("useCurrentLocationBtn");
 const locationStatusTextEl = document.getElementById("locationStatusText");
 const mapsQrBtnEl = document.getElementById("mapsQrBtn");
@@ -107,6 +108,11 @@ const mapsQrImageEl = document.getElementById("mapsQrImage");
 const mapsQrWarningsEl = document.getElementById("mapsQrWarnings");
 const mapsQrResolvedDetailsEl = document.getElementById("mapsQrResolvedDetails");
 const mapsQrResolvedTextEl = document.getElementById("mapsQrResolvedText");
+const mapsQrVn2000SectionEl = document.getElementById("mapsQrVn2000Section");
+const mapsQrVn2000ProvinceEl = document.getElementById("mapsQrVn2000Province");
+const mapsQrVn2000EastingEl = document.getElementById("mapsQrVn2000Easting");
+const mapsQrVn2000NorthingEl = document.getElementById("mapsQrVn2000Northing");
+const mapsQrCopyVn2000BtnEl = document.getElementById("mapsQrCopyVn2000Btn");
 
 const resultLatEl = document.getElementById("resultLat");
 const resultLngEl = document.getElementById("resultLng");
@@ -123,7 +129,7 @@ const brandLogoEl = document.getElementById("brandLogo");
 const brandFallbackEl = document.getElementById("brandFallback");
 
 const state = { lastLatitude: null, lastLongitude: null, lastMapsUrl: "", activeFeature: "convert", ocrSingle: null };
-const mapsQrState = { link: "", qrDataUrl: "", accuracyMeters: null };
+const mapsQrState = { link: "", qrDataUrl: "", accuracyMeters: null, vn2000Text: "" };
 
 function toVietnameseCoordinateSource(source) {
   if (source === "plus_code") return "Plus Code";
@@ -424,8 +430,10 @@ async function loadProvinces() {
 
   provinceEl.disabled = true;
   ocrProvinceEl.disabled = true;
+  mapsQrProvinceEl.disabled = true;
   provinceEl.innerHTML = '<option value="">Đang tải danh sách tỉnh/thành...</option>';
   ocrProvinceEl.innerHTML = '<option value="">Đang tải danh sách tỉnh/thành...</option>';
+  mapsQrProvinceEl.innerHTML = '<option value="">Không quy đổi VN2000</option>';
   setProvinceStatus("Đang tải danh sách tỉnh/thành...", "muted", false);
   try {
     const candidateUrls = [API_URLS.provinces];
@@ -484,6 +492,7 @@ async function loadProvinces() {
     if (provinceList.length === 0) throw new Error("EMPTY_PROVINCE_LIST");
     provinceEl.innerHTML = '<option value="">Chọn tỉnh/thành phố</option>';
     ocrProvinceEl.innerHTML = '<option value="">Chọn tỉnh/thành phố</option>';
+    mapsQrProvinceEl.innerHTML = '<option value="">Không quy đổi VN2000</option>';
     provinceList.forEach((province) => {
       const opt1 = document.createElement("option");
       opt1.value = province;
@@ -493,6 +502,10 @@ async function loadProvinces() {
       opt2.value = province;
       opt2.textContent = province;
       ocrProvinceEl.appendChild(opt2);
+      const opt3 = document.createElement("option");
+      opt3.value = province;
+      opt3.textContent = province;
+      mapsQrProvinceEl.appendChild(opt3);
     });
     const variants = ["TP.Hồ Chí Minh", "TP Hồ Chí Minh", "Thành phố Hồ Chí Minh", "TP.HCM"];
     const options = Array.from(provinceEl.options).map((o) => o.value.trim());
@@ -500,9 +513,11 @@ async function loadProvinces() {
     if (found) {
       provinceEl.value = found;
       ocrProvinceEl.value = found;
+      mapsQrProvinceEl.value = found;
     }
     provinceEl.disabled = false;
     ocrProvinceEl.disabled = false;
+    mapsQrProvinceEl.disabled = false;
     setProvinceStatus("Đã tải danh sách tỉnh/thành.", "success", false);
   } catch (err) {
     console.error("[GeoQR] Cannot load provinces", {
@@ -512,8 +527,10 @@ async function loadProvinces() {
     });
     provinceEl.innerHTML = '<option value="">Chưa có dữ liệu tỉnh/thành</option>';
     ocrProvinceEl.innerHTML = '<option value="">Chưa có dữ liệu tỉnh/thành</option>';
+    mapsQrProvinceEl.innerHTML = '<option value="">Không quy đổi VN2000</option>';
     provinceEl.disabled = true;
     ocrProvinceEl.disabled = true;
+    mapsQrProvinceEl.disabled = true;
     setProvinceStatus("Không tải được danh sách tỉnh/thành. Vui lòng kiểm tra kết nối API rồi thử lại.", "error", true);
     statusTextEl.textContent = `Không kết nối được backend (${API_BASE_URL || "same-origin"}).`;
   }
@@ -628,6 +645,7 @@ function renderMapsQrWarnings(warnings) {
 
 async function createMapsQr() {
   const inputText = (mapsQrInputEl.value || "").trim();
+  const selectedProvince = (mapsQrProvinceEl.value || "").trim();
   if (!inputText) {
     mapsQrStatusTextEl.textContent = "Vui lòng nhập nội dung trước khi tạo QR.";
     return;
@@ -638,13 +656,15 @@ async function createMapsQr() {
   mapsQrResultCardEl.classList.add("hidden");
   mapsQrWarningsEl.innerHTML = "";
   mapsQrResolvedDetailsEl.classList.add("hidden");
+  mapsQrVn2000SectionEl.classList.add("hidden");
   mapsQrState.accuracyMeters = null;
+  mapsQrState.vn2000Text = "";
 
   try {
     const resp = await fetch(API_URLS.googleMapsQr, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input_text: inputText }),
+      body: JSON.stringify({ input_text: inputText, province: selectedProvince || null }),
     });
     const data = await resp.json();
     if (!resp.ok || data?.ok === false) {
@@ -663,6 +683,7 @@ async function createMapsQr() {
     mapsQrAccuracyEl.textContent = "-";
     mapsQrState.link = data.google_maps_url || "";
     mapsQrState.qrDataUrl = data.qr_png_base64 ? `data:image/png;base64,${data.qr_png_base64}` : "";
+    mapsQrState.vn2000Text = "";
 
     if (mapsQrState.qrDataUrl) {
       mapsQrImageEl.src = mapsQrState.qrDataUrl;
@@ -670,6 +691,18 @@ async function createMapsQr() {
     } else {
       mapsQrImageEl.removeAttribute("src");
       mapsQrImageBoxEl.classList.add("hidden");
+    }
+
+    if (data.vn2000) {
+      const easting = Number(data.vn2000.easting);
+      const northing = Number(data.vn2000.northing);
+      mapsQrVn2000ProvinceEl.textContent = data.vn2000.province || "-";
+      mapsQrVn2000EastingEl.textContent = Number.isFinite(easting) ? easting.toFixed(3) : "-";
+      mapsQrVn2000NorthingEl.textContent = Number.isFinite(northing) ? northing.toFixed(3) : "-";
+      mapsQrState.vn2000Text = Number.isFinite(easting) && Number.isFinite(northing) ? `${easting.toFixed(3)},${northing.toFixed(3)}` : "";
+      mapsQrVn2000SectionEl.classList.remove("hidden");
+    } else {
+      mapsQrVn2000SectionEl.classList.add("hidden");
     }
 
     renderMapsQrWarnings((data.warnings || []).map((w) => translateWarningText(w)));
@@ -967,6 +1000,10 @@ mapsQrCopyBtnEl.addEventListener("click", async () => {
   if (!mapsQrState.link) return;
   await copyText(mapsQrState.link, "Đã sao chép link Google Maps.");
 });
+mapsQrCopyVn2000BtnEl.addEventListener("click", async () => {
+  if (!mapsQrState.vn2000Text) return;
+  await copyText(mapsQrState.vn2000Text, "Đã sao chép tọa độ VN2000.");
+});
 mapsQrDownloadBtnEl.addEventListener("click", () => {
   if (!mapsQrState.qrDataUrl.startsWith("data:image/png;base64,")) return;
   const link = document.createElement("a");
@@ -985,4 +1022,3 @@ retryOcrProvinceBtnEl?.addEventListener("click", loadProvinces);
 
 setActiveFeature(state.activeFeature);
 loadProvinces();
-

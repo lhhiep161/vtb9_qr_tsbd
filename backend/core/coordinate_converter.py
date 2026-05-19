@@ -41,6 +41,13 @@ class ConversionResult:
     warnings: List[str]
 
 
+@dataclass(frozen=True)
+class ReverseConversionResult:
+    easting: float
+    northing: float
+    warnings: List[str]
+
+
 class CoordinateConverter:
     @staticmethod
     def _build_source_crs(local_crs: VN2000LocalCRS) -> CRS:
@@ -69,6 +76,22 @@ class CoordinateConverter:
         transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
         lng, lat = transformer.transform(x, y)
         return lat, lng
+
+    @staticmethod
+    def convert_wgs84_to_vn2000(
+        latitude: float,
+        longitude: float,
+        local_crs: VN2000LocalCRS,
+    ) -> ReverseConversionResult:
+        warnings: List[str] = []
+        if not CoordinateConverter._is_in_vietnam_bbox(latitude, longitude):
+            warnings.append("WGS84 coordinate is outside Vietnam bbox (lat 8..24, lng 102..110).")
+
+        source_crs = CRS.from_epsg(4326)
+        target_crs = CoordinateConverter._build_source_crs(local_crs)
+        transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+        easting, northing = transformer.transform(longitude, latitude)
+        return ReverseConversionResult(easting=easting, northing=northing, warnings=warnings)
 
     @staticmethod
     def _is_in_vietnam_bbox(latitude: float, longitude: float) -> bool:

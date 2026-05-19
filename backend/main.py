@@ -137,6 +137,14 @@ class OCRStatusResponse(BaseModel):
 
 class GoogleMapsQRRequest(BaseModel):
     input_text: str = Field(min_length=1)
+    province: Optional[str] = None
+
+
+class GoogleMapsQRVN2000Response(BaseModel):
+    province: str
+    easting: float
+    northing: float
+    coordinate_order: Literal["easting_northing"] = "easting_northing"
 
 
 class GoogleMapsQRSuccessResponse(BaseModel):
@@ -149,6 +157,7 @@ class GoogleMapsQRSuccessResponse(BaseModel):
     resolved_url: Optional[str]
     qr_png_base64: str
     warnings: List[str]
+    vn2000: Optional[GoogleMapsQRVN2000Response] = None
 
 
 class GoogleMapsQRErrorResponse(BaseModel):
@@ -405,6 +414,36 @@ def create_google_maps_qr(payload: GoogleMapsQRRequest):
         if coordinate_source == SOURCE_VIEWPORT_FALLBACK:
             warnings.append("Link Google Maps chỉ có tọa độ tâm màn hình, có thể không phải vị trí chính xác của địa điểm.")
 
+        vn2000: Optional[GoogleMapsQRVN2000Response] = None
+        province = (payload.province or "").strip()
+        if province:
+            try:
+                local_crs = config_loader.get_by_province(province)
+            except VN2000ConfigError:
+                return JSONResponse(
+                    status_code=400,
+                    content=GoogleMapsQRErrorResponse(
+                        ok=False,
+                        message="Tỉnh/Thành phố VN2000 không hợp lệ.",
+                        suggestion="Vui lòng chọn một tỉnh/thành phố hợp lệ trong danh sách rồi thử lại.",
+                    ).model_dump(),
+                )
+
+            reverse_conversion = CoordinateConverter.convert_wgs84_to_vn2000(
+                latitude=latitude,
+                longitude=longitude,
+                local_crs=local_crs,
+            )
+            warnings.extend(reverse_conversion.warnings)
+            if coordinate_source == SOURCE_VIEWPORT_FALLBACK:
+                warnings.append("Kết quả VN2000 cũng dựa trên tọa độ tâm màn hình nên có thể không chính xác cho đúng địa điểm.")
+            vn2000 = GoogleMapsQRVN2000Response(
+                province=local_crs.province_name,
+                easting=reverse_conversion.easting,
+                northing=reverse_conversion.northing,
+                coordinate_order="easting_northing",
+            )
+
         maps_url = build_google_maps_url(latitude, longitude)
         qr_png_base64 = build_qr_png_base64(maps_url)
         return GoogleMapsQRSuccessResponse(
@@ -417,6 +456,7 @@ def create_google_maps_qr(payload: GoogleMapsQRRequest):
             resolved_url=resolved_url,
             qr_png_base64=qr_png_base64,
             warnings=warnings,
+            vn2000=vn2000,
         )
     except ValueError as exc:
         return JSONResponse(

@@ -29,7 +29,7 @@
             <div class="app-hero-chips app-hero-features" aria-label="Tính năng chính">
               <span class="app-hero-chip app-feature-chip">OCR tọa độ</span>
               <span class="app-hero-chip app-feature-chip">Chuyển WGS84</span>
-              <span class="app-hero-chip app-feature-chip">Tạo QR vị trí</span>
+              <span class="app-hero-chip app-feature-chip">Vị trí & QR</span>
             </div>
           </div>
         </div>
@@ -54,8 +54,8 @@
           <span class="feature-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h2v2h-2zm4 0h4v2h-4zm-2 4h2v2h-2zm4 0h2v4h-2zm-6 2h4v2h-4z"/></svg>
           </span>
-          <strong><span class="feature-title-full">Tạo QR vị trí</span><span class="feature-title-short">QR vị trí</span></strong>
-          <small>Hỗ trợ link Maps, lat,lng và Plus Code.</small>
+          <strong><span class="feature-title-full">Vị trí & QR</span><span class="feature-title-short">QR vị trí</span></strong>
+          <small>Hỗ trợ link Maps, lat,lng, Plus Code và VN2000.</small>
         </button>
       </section>
 
@@ -165,10 +165,15 @@
 
       <section id="panel-qr" class="tool-panel" data-panel="qr">
         <section id="mapsQrCard" class="card">
-          <h2 class="section-title">Tạo QR vị trí</h2>
-          <p class="section-helper">Dán link Google Maps, tọa độ lat,lng hoặc Plus Code để tạo QR chia sẻ vị trí.</p>
+          <h2 class="section-title">Vị trí & QR</h2>
+          <p class="section-helper">Dán link Google Maps, tọa độ lat,lng hoặc Plus Code để tạo QR và quy đổi VN2000 khi cần.</p>
           <label class="field-label" for="mapsQrInput">Link Google Maps / Lat,Lng / Plus Code</label>
           <textarea id="mapsQrInput" class="field-input" rows="4" placeholder="10.7769,106.7009&#10;https://www.google.com/maps?q=10.7769,106.7009&#10;849VQJQ5+XX"></textarea>
+          <label class="field-label" for="mapsQrProvince">Tỉnh/Thành phố dùng để quy đổi VN2000</label>
+          <select id="mapsQrProvince" class="field-input">
+            <option value="">Không quy đổi VN2000</option>
+          </select>
+          <p class="field-status maps-qr-vn2000-note">VN2000 phụ thuộc kinh tuyến trục từng tỉnh/thành. Vui lòng chọn đúng địa phương của điểm cần quy đổi.</p>
           <div class="location-quick-box">
             <p class="location-quick-title">Hoặc tạo nhanh từ vị trí hiện tại</p>
             <button id="useCurrentLocationBtn" class="location-btn" type="button">📍 Dùng vị trí của tôi</button>
@@ -184,6 +189,15 @@
             <div class="result-row"><span>Longitude</span><strong id="mapsQrLng">-</strong></div>
             <div class="result-row"><span>Độ chính xác</span><strong id="mapsQrAccuracy">-</strong></div>
             <div class="result-row"><span>Google Maps</span><a id="mapsQrLink" href="#" target="_blank" rel="noopener">Mở liên kết</a></div>
+            <section id="mapsQrVn2000Section" class="vn2000-result-section hidden">
+              <h3 class="result-subtitle">VN2000</h3>
+              <div class="result-row"><span>Tỉnh/Thành VN2000</span><strong id="mapsQrVn2000Province">-</strong></div>
+              <div class="result-row"><span>Easting / Đông</span><strong id="mapsQrVn2000Easting">-</strong></div>
+              <div class="result-row"><span>Northing / Bắc</span><strong id="mapsQrVn2000Northing">-</strong></div>
+              <div class="result-actions">
+                <button id="mapsQrCopyVn2000Btn" class="secondary-btn" type="button">Sao chép VN2000</button>
+              </div>
+            </section>
             <div class="result-actions">
               <button id="mapsQrOpenBtn" class="secondary-btn" type="button">Mở Google Maps</button>
               <button id="mapsQrCopyBtn" class="secondary-btn" type="button">Sao chép link</button>
